@@ -6,3 +6,5 @@ prisma/*.db
 prisma/*.db-journal
 dist/
 .vercel/
+.env.example
+
