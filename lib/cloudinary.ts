@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
-import type { AcastingJob, ImageStyle, CustomOverlayStyle } from './types';
+import type { AcastingJob, ImageStyle } from './types';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -8,151 +8,80 @@ cloudinary.config({
   secure: true,
 });
 
-// ─────────────────────────────────────────────────────────────────
-// Style configs
-// ─────────────────────────────────────────────────────────────────
-const PRESET_MAP = {
-  dark:   { brightness: -85, titleColor: 'white',  subColor: 'white',  accentHex: '7C3AED' },
-  purple: { brightness: -60, titleColor: 'white',  subColor: 'E5D5FF', accentHex: 'A78BFA' },
-  noir:   { brightness: -95, titleColor: 'white',  subColor: 'CCCCCC', accentHex: 'FFFFFF' },
-};
-
-/** Return the correct Cloudinary color string: named or rgb:RRGGBB */
-function coColor(c: string): string {
-  return /^[0-9A-Fa-f]{6}$/.test(c) ? `rgb:${c}` : c;
+export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
+  const result = await cloudinary.uploader.upload(imageUrl, {
+    folder: 'acasting',
+    resource_type: 'image',
+  });
+  return result.public_id;
 }
 
-/** Build Cloudinary SDK transformation array */
-function buildTransformations(
+// Encodes text safely for Cloudinary URL transformations
+function enc(text: string): string {
+  return encodeURIComponent(text || '')
+    .replace(/,/g, '%2C')
+    .replace(/\//g, '%2F')
+    .replace(/:/g, '%3A');
+}
+
+export function buildOverlayUrl(
+  publicId: string,
   job: AcastingJob,
-  style: ImageStyle,
-  customStyle?: CustomOverlayStyle
-) {
-  let brightness: number, titleColor: string, subColor: string, accentHex: string;
-  let font: string, titleSize: number, bodySize: number, titleY: number, bodyY: number;
+  style: ImageStyle = 'dark'
+): string {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
 
-  if (style === 'custom' && customStyle) {
-    brightness  = customStyle.brightness;
-    titleColor  = customStyle.titleColor;
-    subColor    = customStyle.bodyColor;
-    accentHex   = customStyle.accentColor;
-    font        = customStyle.titleFontFamily.replace(/ /g, '_');
-    titleSize   = customStyle.titleFontSize;
-    bodySize    = customStyle.bodyFontSize;
-    titleY      = customStyle.titleY;
-    bodyY       = customStyle.bodyY;
-  } else {
-    const p    = PRESET_MAP[style as keyof typeof PRESET_MAP] ?? PRESET_MAP.dark;
-    brightness = p.brightness;
-    titleColor = p.titleColor;
-    subColor   = p.subColor;
-    accentHex  = p.accentHex;
-    font       = 'Arial';
-    titleSize  = 46;
-    bodySize   = 42;
-    titleY     = -250;
-    bodyY      = 40;
-  }
+  const styleConfig = {
+    dark: { brightness: -80, titleColor: 'white', subColor: 'white', accentColor: '7C3AED' },
+    purple: { brightness: -60, titleColor: 'white', subColor: 'E5D5FF', accentColor: 'A78BFA' },
+    noir: { brightness: -95, titleColor: 'white', subColor: 'CCCCCC', accentColor: 'FFFFFF' },
+    warm: { brightness: -65, titleColor: 'FFEDD8', subColor: 'FFC599', accentColor: 'FF6B35' },
+  }[style];
 
-  const divY   = bodyY - 80;
-  const expY   = bodyY + 100;
-  const ctaY   = bodyY + 260;
-  const brandY = bodyY + 350;
-
-  const title  = job.title || 'Casting';
+  const title = job.title || 'Casting';
   const salary = job.salary ? `Arvode: ${job.salary} kr` : 'Arvode: Ej angivet';
-  const expiry = `Ansok senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Lopande'}`;
+  const expiry = `Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`;
+  const city = job.city || 'Sverige';
 
-  return [
-    { width: 1080, height: 1920, crop: 'fill' as const, gravity: 'face:auto', quality: 90 },
-    { effect: `brightness:${brightness}` },
-    // Title
-    {
-      overlay: { font_family: font, font_size: titleSize, font_weight: 'bold', text_align: 'center', text: title },
-      gravity: 'center', y: titleY, width: 900, crop: 'fit' as const, color: coColor(titleColor),
-    },
+  const transforms = [
+    // Base: resize to portrait Instagram/TikTok format
+    'w_1080,h_1920,c_fill,g_face:auto,dpr_2.0,q_90',
+    // Dark overlay
+    `e_brightness:${styleConfig.brightness}`,
+    // Decorative line top
+    `l_text:Arial_4_bold:.,g_north,y_120,co_${styleConfig.accentColor},w_200`,
+    // Category badge
+    `l_text:Arial_28_bold:${enc((job.category || 'CASTING').toUpperCase())},g_north,y_80,co_${styleConfig.accentColor}`,
+    // Title (large)
+    `l_text:Arial_58_bold_center:${enc(title)},g_center,y_-280,w_920,c_fit,co_${styleConfig.titleColor}`,
     // Divider
-    {
-      overlay: { font_family: 'Arial', font_size: 65, font_weight: 'bold', text: '__' },
-      gravity: 'center', y: divY, color: coColor(accentHex),
-    },
+    `l_text:Arial_36_bold:─────────────,g_center,y_-160,co_${styleConfig.accentColor}`,
+    // City
+    `l_text:Arial_38_bold_center:${enc('📍 ' + city)},g_center,y_-90,w_920,c_fit,co_${styleConfig.subColor}`,
     // Salary
-    {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: salary },
-      gravity: 'center', y: bodyY, width: 900, crop: 'fit' as const, color: coColor(subColor),
-    },
-    // Expiry
-    {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: expiry },
-      gravity: 'center', y: expY, width: 900, crop: 'fit' as const, color: coColor(subColor),
-    },
-    // CTA
-    {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: 'Ansok nu pa' },
-      gravity: 'center', y: ctaY, width: 900, crop: 'fit' as const, color: coColor(subColor),
-    },
-    // Brand
-    {
-      overlay: { font_family: font, font_size: bodySize + 4, font_weight: 'bold', text_align: 'center', text: 'ACASTING' },
-      gravity: 'center', y: brandY, width: 900, crop: 'fit' as const, color: coColor(accentHex),
-    },
-  ];
+    `l_text:Arial_46_bold_center:${enc(salary)},g_center,y_10,w_920,c_fit,co_${styleConfig.titleColor}`,
+    // Expiry date
+    `l_text:Arial_38_bold_center:${enc(expiry)},g_center,y_100,w_920,c_fit,co_${styleConfig.subColor}`,
+    // Bottom CTA divider
+    `l_text:Arial_36_bold:─────────────,g_center,y_260,co_${styleConfig.accentColor}`,
+    // CTA line 1
+    `l_text:Arial_42_bold_center:Ansök nu på,g_center,y_340,w_920,c_fit,co_${styleConfig.subColor}`,
+    // CTA brand
+    `l_text:Arial_72_bold_center:ACASTING.SE,g_center,y_430,w_920,c_fit,co_${styleConfig.accentColor}`,
+    // Output format
+    'f_jpg',
+  ].join('/');
+
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Main export: upload source → transform via SDK → fetch server-side
-// → re-upload processed image → return clean URL (no transform params)
-// ─────────────────────────────────────────────────────────────────
-export async function generateOverlayImage(
-  sourceUrl: string,
-  job: AcastingJob,
-  style: ImageStyle = 'dark',
-  customStyle?: CustomOverlayStyle
-): Promise<string> {
-  console.log('[cloudinary] Uploading source image:', sourceUrl);
-
-  // 1. Upload source image to Cloudinary
-  const uploaded = await cloudinary.uploader.upload(sourceUrl, {
-    folder: 'acasting_source',
-    resource_type: 'image',
-  });
-  console.log('[cloudinary] Source public_id:', uploaded.public_id);
-
-  // 2. Build transformation URL using SDK (handles encoding properly)
-  const transformation = buildTransformations(job, style, customStyle);
-  const cdnUrl = cloudinary.url(uploaded.public_id, {
-    secure: true,
-    format: 'jpg',
-    transformation,
-  });
-  console.log('[cloudinary] CDN transform URL:', cdnUrl);
-
-  // 3. Fetch transformed image server-side (Node.js, no browser encoding issues)
-  const res = await fetch(cdnUrl);
-  if (!res.ok) {
-    const errText = await res.text().catch(() => res.statusText);
-    throw new Error(`Cloudinary transform failed [${res.status}]: ${errText}`);
-  }
-
-  // 4. Re-upload processed image as a standalone clean asset
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const dataUri = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-
-  const finalResult = await cloudinary.uploader.upload(dataUri, {
-    folder: 'acasting_processed',
-    format: 'jpg',
-    resource_type: 'image',
-  });
-  console.log('[cloudinary] Final clean URL:', finalResult.secure_url);
-
-  // 5. Return clean direct URL — no transformation params, no encoding issues
-  return finalResult.secure_url;
-}
-
+// Generate a placeholder image when no source image is available
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
+  // Upload a solid color placeholder
   const result = await cloudinary.uploader.upload(
-    `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent((jobTitle || 'Casting').slice(0, 30))}`,
-    { folder: 'acasting_source' }
+    `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`,
+    { folder: 'acasting/placeholders' }
   );
-  return result.secure_url;
+  return result.public_id;
 }

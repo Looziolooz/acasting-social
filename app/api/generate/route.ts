@@ -1,71 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  generateOverlayImage,
-  generatePlaceholderAndUpload,
-} from '@/lib/cloudinary';
+import { uploadImageToCloudinary, buildOverlayUrl, generatePlaceholderAndUpload } from '@/lib/cloudinary';
 import { db } from '@/lib/db';
-import type { ImageStyle, CustomOverlayStyle } from '@/lib/types';
+import type { ImageStyle } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      jobId, title, salary, city, expiryDate,
-      slugOrId, category, description, originalImage,
-      style = 'dark', customStyle,
-    } = body;
-
-    console.log('[generate] START | jobId:', jobId, '| style:', style, '| image:', originalImage);
+    const { jobId, title, salary, city, expiryDate, slugOrId, category, description, originalImage, style = 'dark' } = body;
 
     if (!jobId) {
       return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
     }
 
+    // Build a job object compatible with buildOverlayUrl
     const jobData = {
-      id: String(jobId),
-      title: title || '',
-      salary: salary ? String(salary) : null,
-      city: city || null,
-      expiryDate: expiryDate || null,
-      slugOrId: slugOrId || String(jobId),
-      category: category || null,
-      description: description || '',
-      imageUrl: originalImage || null,
+      id: jobId,
+      title,
+      salary,
+      city,
+      expiryDate,
+      slugOrId,
+      category,
+      description,
+      imageUrl: originalImage,
       createdAt: new Date().toISOString(),
     };
 
-    // Source URL: use Acasting image or generate a placeholder
-    const sourceUrl = originalImage ||
-      await generatePlaceholderAndUpload(title);
+    // Upload source image to Cloudinary (or use placeholder)
+    let publicId: string;
+    if (originalImage) {
+      publicId = await uploadImageToCloudinary(originalImage);
+    } else {
+      publicId = await generatePlaceholderAndUpload(title);
+    }
 
-    // Generate overlay — server-side processing, returns a clean direct URL
-    const generatedImageUrl = await generateOverlayImage(
-      typeof sourceUrl === 'string' ? sourceUrl : sourceUrl,
-      jobData,
-      style as ImageStyle,
-      customStyle as CustomOverlayStyle | undefined
-    );
-    console.log('[generate] Done:', generatedImageUrl);
+    // Build overlay URL
+    const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle);
 
-    // Save to DB
+    // Save/update in DB
     const record = await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
-        jobId: String(jobId), title, description,
-        salary: salary ? String(salary) : null,
+        jobId: String(jobId),
+        title,
+        description,
+        salary,
         city,
         expiryDate: expiryDate ? expiryDate.split('T')[0] : null,
-        slugOrId, category, originalImage,
-        generatedImage: generatedImageUrl, style, status: 'generated',
+        slugOrId,
+        category,
+        originalImage,
+        generatedImage: generatedImageUrl,
+        style,
+        status: 'generated',
       },
-      update: { generatedImage: generatedImageUrl, style, status: 'generated' },
+      update: {
+        generatedImage: generatedImageUrl,
+        style,
+        status: 'generated',
+      },
     });
 
-    return NextResponse.json({ success: true, imageUrl: generatedImageUrl, record });
-
+    return NextResponse.json({
+      success: true,
+      imageUrl: generatedImageUrl,
+      record,
+    });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error('[generate] ERROR:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('Generate image error:', error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

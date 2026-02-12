@@ -1,65 +1,29 @@
 import type { AcastingJob, Platform } from './types';
-
-function formatSalary(salary: string | null): string {
-  if (!salary || salary === 'Ej angivet') return 'salary not specified';
-  return `${salary} kr`;
-}
-
-function formatDeadline(expiryDate: string | null): string {
-  if (!expiryDate) return 'open deadline';
-  return expiryDate.split('T')[0];
-}
+import { buildAcastingJobUrl } from './acasting';
 
 export function buildCaption(job: AcastingJob, platform: Platform): string {
-  const title    = job.title || 'Casting Call';
-  const city     = job.city || 'Sweden';
-  const salary   = formatSalary(job.salary);
-  const deadline = formatDeadline(job.expiryDate);
-  const link     = `https://www.acasting.se/explore/jobs/${job.slugOrId}`;
+  const url = buildAcastingJobUrl(job.slugOrId);
+  const salary = job.salary ? `${job.salary} kr` : 'Ej angivet';
+  const city = job.city || 'Sverige';
+  const expiry = job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande';
 
-  switch (platform) {
-    case 'instagram':
-      return `🎬 ${title}
+  const base = `🎬 NY CASTING | ${job.title}
 
 📍 ${city}
-💰 ${salary}
-⏰ Deadline: ${deadline}
+💰 Arvode: ${salary}
+📅 Ansök senast: ${expiry}
 
-Apply now on Acasting.se — link in bio!
+${job.description ? job.description.slice(0, 200) + (job.description.length > 200 ? '...' : '') : ''}
 
-#casting #acasting #castingcall #skådespeleri #sweden #filmjobb #statist #reklam #actor #audition`;
+🔗 Ansök nu: ${url}`;
 
-    case 'facebook':
-      return `🎬 New Casting Call on Acasting.se
+  const hashtags = {
+    facebook: '\n\n#casting #film #skådespelare #acasting #teater #reklam #figurer',
+    instagram:
+      '\n\n#casting #film #skådespelare #acasting #teater #reklam #figurant #castingsweden #sweden #model',
+    linkedin: '\n\n#casting #film #entertainment #acasting #rekrytering #kreativt',
+    tiktok: '\n\n#casting #film #skådespelare #acasting #fyp #foryou #sweden',
+  }[platform];
 
-${title}
-
-📍 Location: ${city}
-💰 Salary: ${salary}
-⏰ Apply by: ${deadline}
-
-👉 Apply here: ${link}
-
-Share this post to help reach the right candidate! 🎯`;
-
-    case 'linkedin':
-      return `🎬 Casting Opportunity | ${title}
-
-We are looking for the right candidate for an upcoming production.
-
-📍 Location: ${city}
-💰 Compensation: ${salary}
-📅 Application deadline: ${deadline}
-
-Interested? Apply directly on Acasting.se:
-${link}
-
-#casting #filmproduction #talent #acasting #sweden`;
-
-    case 'tiktok':
-      return `🎬 ${title} 📍 ${city} 💰 ${salary} — Apply on Acasting.se! ⏰ Deadline: ${deadline} #casting #acasting #castingcall #sweden #actor`;
-
-    default:
-      return `🎬 ${title}\n📍 ${city} · 💰 ${salary} · ⏰ ${deadline}\n\n${link}`;
-  }
+  return (base + hashtags).slice(0, platform === 'tiktok' ? 2200 : 63206);
 }
