@@ -3,12 +3,8 @@ generator client {
 }
 
 datasource db {
-<<<<<<< HEAD
   provider = "postgresql"
-=======
-  provider = "sqlite"
->>>>>>> de50d13694f2e44c4219c3af642c5a9399da1231
-  url      = env("DATABASE_URL")
+  url      = env("POSTGRES_PRISMA_URL") // O DATABASE_URL se configurata su Vercel
 }
 
 model ProcessedJob {
