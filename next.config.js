@@ -1,15 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /* le tue opzioni di configurazione qui */
   images: {
+    // Dato che usi Cloudinary e immagini esterne, 
+    // assicurati di aver configurato i domini qui se necessario
     remotePatterns: [
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
-      { protocol: 'https', hostname: '**.acasting.se' },
-      { protocol: 'https', hostname: 'acasting.se' },
-      { protocol: 'https', hostname: 'acasting.blob.core.windows.net' },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.acasting.se',
+      },
     ],
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client'],
   },
 };
 
