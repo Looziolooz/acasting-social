@@ -174,7 +174,6 @@ export default function ImageReviewModal({
                           style={{
                             background: currentStyle === styleKey ? 'rgba(124,58,237,0.15)' : 'var(--surface-3)',
                             border: `1px solid ${currentStyle === styleKey ? 'rgba(124,58,237,0.4)' : 'transparent'}`,
-                            ringColor: 'var(--accent)',
                           }}>
                           <div className="font-medium text-sm text-white">{config.label}</div>
                           <div className="text-xs text-white/40 mt-0.5">{config.desc}</div>
@@ -256,7 +255,6 @@ export default function ImageReviewModal({
                           style={{
                             background: selected ? `${config.color}18` : 'var(--surface-3)',
                             border: `1px solid ${selected ? `${config.color}55` : 'transparent'}`,
-                            ringColor: config.color,
                           }}>
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center"
                             style={{ background: selected ? config.color : 'var(--surface-4)', color: 'white' }}>
