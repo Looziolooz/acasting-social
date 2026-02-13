@@ -81,25 +81,23 @@ export function buildOverlayUrl(
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
   /**
-   * TRASFORMAZIONI ALTA QUALITÀ (RIF. DOC CLOUDINARY):
-   * 1. w_1080,h_1920: Dimensioni fisse per social.
-   * 2. dpr_2.0: Raddoppia la densità pixel per eliminare lo sfuocato su smartphone.
-   * 3. q_100: Disabilita la compressione distruttiva (lossless).
-   * 4. f_png: Forza l'output in PNG per testi nitidissimi senza artefatti JPG.
+   * Miglior qualità + ottimizzazione:
+   * - w_1200,h_2133: 9:16, un po’ più largo per Retina.
+   * - dpr_auto: Cloudinary adatta il DPR al device. [web:6][web:8]
+   * - q_auto,f_auto: qualità e formato automatici (WebP/AVIF dove possibile). [web:3][web:4]
    */
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
+    'w_1200,h_2133,c_fill,g_center,dpr_auto,q_auto,f_auto',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
     `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
-    `l_text:${titleFont}_48_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
-    'f_png'
+    `l_text:${titleFont}_48_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`
   ].join('/');
 
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.png`;
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}`;
 }
 
 export function buildHDDownloadUrl(
@@ -108,5 +106,6 @@ export function buildHDDownloadUrl(
   style: ImageStyle = 'cinematic',
   custom?: CustomImageSettings
 ): string {
+  // stessa URL, quindi stessa qualità tra preview e download
   return buildOverlayUrl(publicId, job, style, custom);
 }
