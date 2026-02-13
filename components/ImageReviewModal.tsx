@@ -19,7 +19,8 @@ import {
   PLATFORM_CONFIG,
   AVAILABLE_FONTS,
   COLOR_PRESETS,
-  DEFAULT_CUSTOM_SETTINGS
+  DEFAULT_CUSTOM_SETTINGS,
+  QUALITY_PRESETS
 } from '@/lib/types';
 
 interface Props {
@@ -277,6 +278,7 @@ export default function ImageReviewModal({
         className="relative w-full max-w-7xl rounded-[32px] overflow-hidden border border-white/10 flex flex-col max-h-[95vh] shadow-2xl"
         style={{ background: 'var(--surface-1)', animation: 'slideUp 0.3s ease both' }}
       >
+        {/* HEADER */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-display font-bold text-white truncate">{job.title}</h2>
@@ -303,8 +305,8 @@ export default function ImageReviewModal({
         </div>
 
         <div className="flex flex-col md:flex-row overflow-hidden flex-1">
+          {/* LEFT: PREVIEW HD */}
           <div className="md:w-[400px] lg:w-[440px] p-6 bg-black/40 flex flex-col gap-4 border-r border-white/5 overflow-y-auto">
-            {/* ANTEPRIMA HD */}
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-surface-0">
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -351,6 +353,7 @@ export default function ImageReviewModal({
             </div>
           </div>
 
+          {/* RIGHT: TABS */}
           <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--surface-1)' }}>
             {step === 'preview' && (
               <div className="flex border-b border-white/5 px-6">
@@ -378,8 +381,10 @@ export default function ImageReviewModal({
             )}
 
             <div className="flex-1 overflow-y-auto p-6">
+              {/* TAB: STYLE */}
               {step === 'preview' && rightTab === 'style' && (
                 <div className="flex flex-col gap-6">
+                  {/* Preset Styles */}
                   <section>
                     <h3
                       className="text-[10px] font-bold text-white/30 uppercase mb-3 tracking-widest border-l-2 pl-3"
@@ -408,6 +413,7 @@ export default function ImageReviewModal({
                     </div>
                   </section>
 
+                  {/* Custom Studio */}
                   {currentStyle === 'custom' && (
                     <section
                       className="rounded-2xl border border-accent/20 overflow-hidden"
@@ -423,6 +429,49 @@ export default function ImageReviewModal({
                         </span>
                       </div>
                       <div className="p-5 space-y-5">
+                        {/* 🆕 Quality Presets */}
+                        <div>
+                          <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">
+                            🎯 Quality Preset
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {QUALITY_PRESETS.map((preset) => (
+                              <button
+                                key={preset.label}
+                                onClick={() => {
+                                  updateCustom({
+                                    outputQuality: preset.quality,
+                                    outputFormat: preset.format,
+                                    outputWidth: preset.width,
+                                    outputHeight: preset.height,
+                                  });
+                                }}
+                                className={`px-3 py-2.5 rounded-lg text-left border transition-all ${
+                                  customSet.outputQuality === preset.quality &&
+                                  customSet.outputWidth === preset.width
+                                    ? 'border-accent bg-accent/10'
+                                    : 'border-white/10 hover:border-white/20'
+                                }`}
+                                style={{ background: 'var(--surface-3)' }}
+                              >
+                                <div className="text-xs font-bold text-white">{preset.label}</div>
+                                <div className="text-[9px] text-white/40 mt-0.5">{preset.desc}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 🆕 Custom Quality Slider */}
+                        <SliderControl
+                          label="Custom Quality"
+                          value={customSet.outputQuality ?? 95}
+                          min={70}
+                          max={100}
+                          unit="%"
+                          onChange={(v) => updateCustom({ outputQuality: v })}
+                        />
+
+                        {/* Font & Colors */}
                         <FontSelect
                           label="Title Font"
                           value={customSet.titleFont || 'Arial'}
@@ -448,6 +497,7 @@ export default function ImageReviewModal({
                           unit=""
                           onChange={(v) => updateCustom({ brightness: v })}
                         />
+
                         <button
                           onClick={() => onRegenerate('custom', customSet)}
                           className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] text-white"
@@ -461,6 +511,7 @@ export default function ImageReviewModal({
                 </div>
               )}
 
+              {/* TAB: CAPTIONS */}
               {step === 'preview' && rightTab === 'captions' && (
                 <div className="space-y-4">
                   {loadingCaptions ? (
@@ -491,22 +542,32 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* Tab EXPORT (placeholder se già lo usi altrove) */}
+              {/* TAB: EXPORT */}
               {step === 'preview' && rightTab === 'export' && (
                 <div className="space-y-4 text-white/70 text-sm">
                   <p>
                     Use the HD download button on the left or copy the direct Cloudinary link to
                     reuse this creative across platforms.
                   </p>
+                  <div className="p-4 rounded-xl bg-surface-2 border border-white/5">
+                    <div className="text-xs text-white/40 mb-2 uppercase font-mono">Current Quality Settings</div>
+                    <div className="space-y-1 text-xs">
+                      <div>Resolution: {customSet.outputWidth}x{customSet.outputHeight}</div>
+                      <div>Quality: {customSet.outputQuality}%</div>
+                      <div>Format: {customSet.outputFormat?.toUpperCase()}</div>
+                    </div>
+                  </div>
                 </div>
               )}
 
+              {/* STEP: PLATFORMS (placeholder) */}
               {step === 'platforms' && (
                 <div className="space-y-4">
-                  {/* qui lasci la tua logica di selezione piattaforme / publish se già implementata altrove */}
+                  <p className="text-white/60 text-sm">Select platforms for publishing...</p>
                 </div>
               )}
 
+              {/* STEP: DONE */}
               {step === 'done' && (
                 <div className="space-y-4 flex flex-col items-center justify-center text-center py-16">
                   <CheckCircle2 className="text-accent" size={40} />

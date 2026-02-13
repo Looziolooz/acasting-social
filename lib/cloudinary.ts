@@ -50,6 +50,10 @@ function cfColor(color?: string): string {
   return `rgb:${hex}`;
 }
 
+/**
+ * 🎯 FUNZIONE OTTIMIZZATA - MASSIMA QUALITÀ HD
+ * Genera URL Cloudinary con trasformazioni ad alta definizione
+ */
 export function buildOverlayUrl(
   publicId: string,
   job: AcastingJob,
@@ -58,6 +62,15 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
+  // 🆕 Parametri qualità personalizzabili
+  const width = custom?.outputWidth ?? 1080;
+  const height = custom?.outputHeight ?? 1920;
+  const quality = custom?.outputQuality ?? 95;
+  const format = custom?.outputFormat ?? 'png';
+  const progressive = custom?.enableProgressive !== false;
+  const lossyPNG = custom?.useLossyPNG !== false;
+
+  // Parametri testo e stile
   const titleText = custom?.titleText || job.title || 'Casting';
   const titleSize = custom?.titleSize ?? 54;
   const titleColor = cfColor(custom?.titleColor);
@@ -81,13 +94,25 @@ export function buildOverlayUrl(
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
   /**
-   * Miglior qualità + ottimizzazione:
-   * - w_1200,h_2133: 9:16, un po’ più largo per Retina.
-   * - dpr_auto: Cloudinary adatta il DPR al device. [web:6][web:8]
-   * - q_auto,f_auto: qualità e formato automatici (WebP/AVIF dove possibile). [web:3][web:4]
+   * 🔥 CONFIGURAZIONE HD OTTIMIZZATA
+   * - Risoluzione: personalizzabile (default 1080x1920 Full HD)
+   * - Qualità: 95 (quasi lossless, perfetto per testi)
+   * - Formato: PNG per testi nitidi
+   * - Progressive: caricamento ottimizzato
+   * - Lossy PNG: compressione intelligente
    */
+  const baseTransforms = [
+    `w_${width},h_${height},c_fill,g_center`,
+    `q_${quality}`,
+    `f_${format}`,
+  ];
+
+  // Aggiungi flag opzionali
+  if (progressive) baseTransforms.push('fl_progressive:steep');
+  if (format === 'png' && lossyPNG) baseTransforms.push('fl_lossy');
+
   const transforms = [
-    'w_1200,h_2133,c_fill,g_center,dpr_auto,q_auto,f_auto',
+    ...baseTransforms,
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
@@ -100,12 +125,14 @@ export function buildOverlayUrl(
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}`;
 }
 
+/**
+ * URL per download HD (identica alla preview per consistenza qualità)
+ */
 export function buildHDDownloadUrl(
   publicId: string,
   job: AcastingJob,
   style: ImageStyle = 'cinematic',
   custom?: CustomImageSettings
 ): string {
-  // stessa URL, quindi stessa qualità tra preview e download
   return buildOverlayUrl(publicId, job, style, custom);
 }

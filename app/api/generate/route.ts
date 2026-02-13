@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       publicId = await generatePlaceholderAndUpload(title);
     }
 
-    // 2. Formattazione dati (Workflow originale)
+    // 2. Formattazione dati
     const safeSlugOrId = slugOrId || String(jobId);
     const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : 'Löpande';
     const formattedSalary = !salary || salary === 'Ej angivet' ? 'Ej angivet' : String(salary);
@@ -55,11 +55,11 @@ export async function POST(req: NextRequest) {
       imageUrl: originalImage || null,
     };
 
-    // 3. Generazione URL ad alta qualità
+    // 3. Generazione URL ad alta qualità con customSettings
     const generatedImageUrl = buildOverlayUrl(publicId, jobData as any, style as ImageStyle, customSettings);
     const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData as any, style as ImageStyle, customSettings);
 
-    // 4. Salvataggio Database con FIX TIPO (Forza String)
+    // 4. Salvataggio Database
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
