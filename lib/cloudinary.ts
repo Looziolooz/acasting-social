@@ -26,6 +26,9 @@ export async function uploadImageToCloudinary(imageUrl: string): Promise<string>
   });
 }
 
+/**
+ * ESPORTAZIONE RIPRISTINATA: Genera placeholder HD se l'immagine originale manca
+ */
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
   const url = `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`;
   const response = await fetch(url);
@@ -40,6 +43,9 @@ export async function generatePlaceholderAndUpload(jobTitle: string): Promise<st
 
 const enc = (text: string) => encodeURIComponent(text || '').replace(/,/g, '%2C').replace(/\//g, '%2F');
 
+/**
+ * Costruisce l'URL HD con overlay. Supporta parametri Custom (titolo, posizione, luminosità).
+ */
 export function buildOverlayUrl(
   publicId: string, 
   job: AcastingJob, 
@@ -48,6 +54,7 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dylwdckvv';
   
+  // Parametri dinamici: usa customSettings se presenti o i default dello stile selezionato
   const brightness = custom?.brightness ?? (style === 'noir' ? -90 : -75);
   const titleY = custom?.titleY ?? -250;
   const titleSize = custom?.titleSize ?? 46;
@@ -55,14 +62,14 @@ export function buildOverlayUrl(
   const accentColor = style === 'purple' ? 'A78BFA' : '7C3AED';
 
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_auto:best',
+    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_auto:best', // QUALITÀ HD
     `e_brightness:${brightness}`,
     `l_text:Arial_${titleSize}_bold_center:${enc(job.title)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
     `l_text:Arial_46_bold_center:${enc(job.salary || 'Ej angivet')},g_center,y_40,w_900,c_fit,co_white`,
     `l_text:Arial_46_bold_center:${enc(job.expiryDate || 'Löpande')},g_center,y_140,w_900,c_fit,co_white`,
-    'l_text:Arial_46_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_white',
-    `l_text:Arial_46_bold_center:ACASTING,g_center,y_380,w_900,c_fit,co_rgb:${accentColor}`,
+    'l_text:Arial_44_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_white',
+    `l_text:Arial_52_bold_center:ACASTING.SE,g_center,y_${custom?.titleY ? custom.titleY + 640 : 390},w_900,c_fit,co_rgb:${accentColor}`,
     'f_jpg'
   ].join('/');
 
