@@ -1,4 +1,3 @@
-// components/ImageReviewModal.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -32,7 +31,7 @@ const PlatformIcon = ({ platform, size = 16 }: { platform: Platform; size?: numb
     case 'facebook': return <Facebook size={size} />;
     case 'instagram': return <Instagram size={size} />;
     case 'linkedin': return <Linkedin size={size} />;
-    case 'tiktok': return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.37a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.8z" /></svg>;
+    case 'tiktok': return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.37a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.8z" /></svg>;
   }
 };
 
@@ -220,7 +219,6 @@ export default function ImageReviewModal({
 
         <div className="flex flex-col md:flex-row overflow-hidden flex-1">
           <div className="md:w-[400px] lg:w-[440px] p-6 bg-black/40 flex flex-col gap-4 border-r border-white/5 overflow-y-auto">
-            {/* ANTEPRIMA HD - FIX: Rimosso next/image che sfuocava i testi generati dinamicamente */}
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-surface-0">
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -232,7 +230,7 @@ export default function ImageReviewModal({
                   src={imageUrl} 
                   alt="HD Preview" 
                   className="w-full h-full object-cover" 
-                  style={{ imageRendering: 'auto' }} 
+                  style={{ imageRendering: 'auto' }}
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/20 text-sm font-display uppercase tracking-widest">
@@ -253,11 +251,6 @@ export default function ImageReviewModal({
                 <ImageIcon size={14} /> IMG + Caption
               </button>
             </div>
-            <button onClick={copyImageUrl} disabled={!imageUrl}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[11px] font-medium transition-all disabled:opacity-30"
-              style={{ borderColor: 'rgba(255,255,255,0.1)', color: copiedImageLink ? '#10b981' : 'rgba(255,255,255,0.5)' }}>
-              {copiedImageLink ? <><CheckCircle2 size={13} /> URL Copied!</> : <><Copy size={13} /> Copy Image URL</>}
-            </button>
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--surface-1)' }}>
@@ -288,13 +281,7 @@ export default function ImageReviewModal({
                     <div className="grid grid-cols-2 gap-3">
                       {Object.entries(STYLE_LABELS).map(([styleKey, config]) => (
                         <button key={styleKey}
-                          onClick={() => {
-                            if (styleKey === 'custom') {
-                              onRegenerate(styleKey as ImageStyle, customSet);
-                            } else {
-                              onRegenerate(styleKey as ImageStyle);
-                            }
-                          }}
+                          onClick={() => onRegenerate(styleKey as ImageStyle, styleKey === 'custom' ? customSet : undefined)}
                           className={`p-4 rounded-2xl text-left border-2 transition-all ${currentStyle === styleKey
                             ? 'border-accent bg-accent/10'
                             : 'border-white/5 hover:border-white/15'
@@ -306,132 +293,6 @@ export default function ImageReviewModal({
                       ))}
                     </div>
                   </section>
-
-                  {currentStyle === 'custom' && (
-                    <section className="rounded-2xl border border-accent/20 overflow-hidden"
-                      style={{ background: 'rgba(124,58,237,0.04)' }}>
-                      <div className="flex items-center gap-2 px-5 py-3 border-b border-accent/10"
-                        style={{ color: 'var(--accent-light)' }}>
-                        <Sliders size={16} />
-                        <span className="text-xs font-bold uppercase tracking-widest">Custom Studio</span>
-                      </div>
-
-                      <div className="p-5 space-y-5">
-                        <div>
-                          <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">Title Override</div>
-                          <input type="text"
-                            value={customSet.titleText || ''}
-                            onChange={(e) => updateCustom({ titleText: e.target.value })}
-                            placeholder={job.title}
-                            className="w-full bg-surface-3 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-accent/50"
-                            style={{ background: 'var(--surface-3)' }} />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <FontSelect label="Title Font" value={customSet.titleFont || 'Arial'}
-                            onChange={(v) => updateCustom({ titleFont: v })} />
-                          <FontSelect label="Body Font" value={customSet.subtitleFont || 'Arial'}
-                            onChange={(v) => updateCustom({ subtitleFont: v })} />
-                        </div>
-
-                        <ColorPicker label="Title Color" value={customSet.titleColor || 'white'}
-                          onChange={(v) => updateCustom({ titleColor: v })} />
-                        <ColorPicker label="Body Text Color" value={customSet.subtitleColor || 'white'}
-                          onChange={(v) => updateCustom({ subtitleColor: v })} />
-                        <ColorPicker label="CTA / Accent Color" value={customSet.accentColor || '7C3AED'}
-                          onChange={(v) => updateCustom({ accentColor: v, ctaColor: v })} />
-
-                        <SliderControl label="Title Position (Y)" value={customSet.titleY ?? -250}
-                          min={-500} max={0} onChange={(v) => updateCustom({ titleY: v })} />
-                        <SliderControl label="Title Size" value={customSet.titleSize ?? 54}
-                          min={24} max={100} onChange={(v) => updateCustom({ titleSize: v })} />
-                        <SliderControl label="Body Size" value={customSet.subtitleSize ?? 46}
-                          min={20} max={80} onChange={(v) => updateCustom({ subtitleSize: v })} />
-                        <SliderControl label="Brightness" value={customSet.brightness ?? -75}
-                          min={-100} max={0} unit="" onChange={(v) => updateCustom({ brightness: v })} />
-
-                        <div>
-                          <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">CTA Text</div>
-                          <input type="text" value={customSet.ctaText || 'ACASTING.SE'}
-                            onChange={(e) => updateCustom({ ctaText: e.target.value })}
-                            className="w-full bg-surface-3 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent/50"
-                            style={{ background: 'var(--surface-3)' }} />
-                        </div>
-
-                        <button onClick={() => onRegenerate('custom', customSet)}
-                          className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] text-white"
-                          style={{ background: 'var(--accent)' }}>
-                          Apply Custom Settings
-                        </button>
-                      </div>
-                    </section>
-                  )}
-                </div>
-              )}
-
-              {step === 'preview' && rightTab === 'captions' && (
-                <div className="flex flex-col gap-5">
-                  {loadingCaptions ? (
-                    <div className="flex justify-center py-12">
-                      <Loader2 className="animate-spin" size={24} style={{ color: 'var(--accent)' }} />
-                    </div>
-                  ) : (
-                    (Object.entries(PLATFORM_CONFIG) as [Platform, typeof PLATFORM_CONFIG[Platform]][]).map(([platform, config]) => (
-                      <div key={platform} className="rounded-2xl overflow-hidden border border-white/5"
-                        style={{ background: 'var(--surface-2)' }}>
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5"
-                          style={{ background: 'var(--surface-3)' }}>
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                              style={{ background: `${config.color}30`, color: config.color }}>
-                              <PlatformIcon platform={platform} size={14} />
-                            </div>
-                            <span className="text-sm font-bold text-white">{config.label}</span>
-                          </div>
-                          <button onClick={() => copyToClipboard(captions[platform] || '', platform)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-white/5"
-                            style={{ color: copiedCaption === platform ? '#10b981' : 'var(--accent-light)' }}>
-                            {copiedCaption === platform ? <><CheckCircle2 size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
-                          </button>
-                        </div>
-                        <div className="p-4 max-h-48 overflow-y-auto">
-                          <pre className="text-[12px] text-white/70 whitespace-pre-wrap leading-relaxed font-sans">
-                            {captions[platform] || 'Loading...'}
-                          </pre>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {step === 'preview' && rightTab === 'export' && (
-                <div className="flex flex-col gap-5">
-                  <div className="rounded-2xl overflow-hidden border border-white/10"
-                    style={{ background: 'var(--surface-2)' }}>
-                    <div className="relative">
-                      {imageUrl ? (
-                        <div className="relative aspect-video">
-                          <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(18,18,31,0.8) 0%, transparent 40%)' }} />
-                        </div>
-                      ) : (
-                        <div className="aspect-video flex items-center justify-center" style={{ background: 'var(--surface-3)' }}>
-                          <span className="text-white/20 text-xs uppercase">No image generated yet</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-5 border-t border-white/5">
-                      <pre className="text-[12px] text-white/70 whitespace-pre-wrap leading-relaxed font-sans max-h-40 overflow-y-auto">
-                        {buildManualCaption()}
-                      </pre>
-                    </div>
-                  </div>
-                  <button onClick={downloadImageWithCaption} disabled={!imageUrl}
-                    className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-white disabled:opacity-30"
-                    style={{ background: 'var(--accent)' }}>
-                    <Download size={16} /> Download PNG + Copy Caption
-                  </button>
                 </div>
               )}
 
@@ -457,36 +318,9 @@ export default function ImageReviewModal({
                     })}
                   </div>
                   <div className="flex gap-3 mt-4">
-                    <button onClick={() => setStep('preview')}
-                      className="px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest text-white"
-                      style={{ background: 'var(--surface-3)' }}>Back</button>
-                    <button onClick={handlePublish} disabled={!selectedPlatforms.length}
-                      className="flex-1 py-4 rounded-2xl font-black text-sm uppercase shadow-2xl transition-all text-white disabled:opacity-40"
-                      style={{ background: 'var(--accent)' }}>
-                      Publish to {selectedPlatforms.length} channels
-                    </button>
+                    <button onClick={() => setStep('preview')} className="px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest text-white" style={{ background: 'var(--surface-3)' }}>Back</button>
+                    <button onClick={handlePublish} disabled={!selectedPlatforms.length} className="flex-1 py-4 rounded-2xl font-black text-sm uppercase shadow-2xl transition-all text-white disabled:opacity-40" style={{ background: 'var(--accent)' }}>Publish to {selectedPlatforms.length} channels</button>
                   </div>
-                </div>
-              )}
-
-              {step === 'publishing' && (
-                <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
-                  <Loader2 className="animate-spin" size={56} style={{ color: 'var(--accent)' }} />
-                  <h3 className="text-xl font-bold text-white uppercase tracking-tighter">Publishing...</h3>
-                </div>
-              )}
-
-              {step === 'done' && (
-                <div className="flex flex-col gap-6">
-                  <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-500/30">
-                    <CheckCircle2 className="text-emerald-500" size={40} />
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-display font-bold text-white mb-1 uppercase">Published!</h3>
-                  </div>
-                  <button onClick={onClose}
-                    className="w-full py-4 rounded-2xl font-black uppercase text-white transition-all hover:opacity-80"
-                    style={{ background: 'var(--surface-3)' }}>Close</button>
                 </div>
               )}
             </div>
