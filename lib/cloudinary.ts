@@ -11,7 +11,7 @@ cloudinary.config({
 
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
   const response = await fetch(imageUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!response.ok) throw new Error(`Fetch fallito: ${response.status}`);
+  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
   const buffer = Buffer.from(await response.arrayBuffer());
 
   return new Promise((resolve, reject) => {
@@ -46,9 +46,9 @@ export function buildOverlayUrl(
   style: ImageStyle = 'dark',
   custom?: CustomImageSettings
 ): string {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dylwdckvv';
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   
-  // Parametri dinamici: usa customSettings se presenti o i default
+  // Dynamic parameters for manual HD editor
   const brightness = custom?.brightness ?? (style === 'noir' ? -90 : -75);
   const titleY = custom?.titleY ?? -250;
   const titleSize = custom?.titleSize ?? 46;
@@ -56,7 +56,7 @@ export function buildOverlayUrl(
   const accentColor = style === 'purple' ? 'A78BFA' : '7C3AED';
 
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_auto:best', // QUALITÀ MASSIMA HD
+    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_auto:best', // HD Quality
     `e_brightness:${brightness}`,
     `l_text:Arial_${titleSize}_bold_center:${enc(job.title)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',

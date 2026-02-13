@@ -62,7 +62,7 @@ export const STYLE_LABELS: Record<ImageStyle, { label: string; desc: string; bri
   dark: { label: 'Cinematic', desc: 'Dark overlay HD', brightness: -85, color: 'white' },
   purple: { label: 'Acasting Purple', desc: 'Brand tone', brightness: -60, color: 'white' },
   noir: { label: 'Noir', desc: 'Max contrast B&W', brightness: -95, color: 'white' },
-  custom: { label: 'Custom Edit', desc: 'Personalizza layout e HD', brightness: -65, color: 'white' },
+  custom: { label: 'Custom Edit', desc: 'Manual layout & HD settings', brightness: -65, color: 'white' },
 };
 
 export const PLATFORM_CONFIG: Record<Platform, { label: string; color: string; icon: string }> = {
