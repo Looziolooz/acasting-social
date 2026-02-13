@@ -14,28 +14,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
     }
 
-    const jobData = {
-      id: jobId,
-      title,
-      salary,
-      city,
-      expiryDate,
-      slugOrId,
-      category,
-      description,
-      imageUrl: originalImage,
-      createdAt: new Date().toISOString(),
-    };
-
+    // Caricamento immagine originale o placeholder
     let publicId: string;
-    if (originalImage) {
-      publicId = await uploadImageToCloudinary(originalImage);
-    } else {
+    try {
+      if (originalImage && originalImage.startsWith('http')) {
+        publicId = await uploadImageToCloudinary(originalImage);
+      } else {
+        publicId = await generatePlaceholderAndUpload(title);
+      }
+    } catch (uploadError) {
+      console.error("Upload failure, falling back to placeholder:", uploadError);
       publicId = await generatePlaceholderAndUpload(title);
     }
 
-    const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle);
+    // Costruzione dell'URL con overlay
+    const jobDataForOverlay = { id: jobId, title, salary, city, expiryDate, slugOrId, category, description, createdAt: '', imageUrl: originalImage };
+    const generatedImageUrl = buildOverlayUrl(publicId, jobDataForOverlay, style as ImageStyle);
 
+    // Salvataggio nel DB (Prisma)
     const record = await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
@@ -61,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, imageUrl: generatedImageUrl, record });
   } catch (error) {
-    console.error('Generate image error:', error);
+    console.error('Critical generation API error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
