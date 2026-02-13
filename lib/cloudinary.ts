@@ -94,7 +94,7 @@ export function buildOverlayUrl(
    * 3. f_png: Forza l'output in PNG per evitare il "rumore" JPG intorno ai testi bianchi.
    */
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
+    'w_1080,h_1920,c_fill,g_center,q_auto:best',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
@@ -102,10 +102,10 @@ export function buildOverlayUrl(
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
     `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
     `l_text:${titleFont}_46_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
-    'f_png'
+    'f_jpg'
   ].join('/');
 
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.png`;
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
 }
 
 export function buildHDDownloadUrl(
