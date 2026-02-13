@@ -38,39 +38,38 @@ export async function generatePlaceholderAndUpload(jobTitle: string): Promise<st
   });
 }
 
+// Stessa funzione enc del workflow n8n
 const enc = (text: string) =>
   encodeURIComponent(text || '')
     .replace(/,/g, '%2C')
     .replace(/\//g, '%2F');
 
-function cloudinaryFont(fontName?: string): string {
+/**
+ * Font per Cloudinary text overlay: spazi diventano underscore
+ * Es: "Playfair Display" → "Playfair Display" (Cloudinary li gestisce con underscore nel path)
+ */
+function cfFont(fontName?: string): string {
   if (!fontName) return 'Arial';
+  // Cloudinary text overlay usa spazi normali encodati come %20 NON funziona
+  // Deve usare il nome esatto del font senza spazi o con underscore
   return fontName.replace(/\s+/g, '%20');
 }
 
 /**
- * Normalizza i colori per Cloudinary URL overlay.
- * Cloudinary accetta: co_white, co_black, co_rgb:HEXCODE
+ * Colore per Cloudinary: white, black, o rgb:HEXCODE
  */
-function toCloudinaryColor(color?: string): string {
-  if (!color) return 'white';
-  if (color === 'white' || color === 'black') return color;
-  // Strip # if present
+function cfColor(color?: string): string {
+  if (!color || color === 'white') return 'white';
+  if (color === 'black') return 'black';
   const hex = color.startsWith('#') ? color.slice(1) : color;
-  // If it's a valid 6-char hex, use rgb: prefix
   if (/^[0-9A-Fa-f]{6}$/.test(hex)) return `rgb:${hex}`;
   return 'white';
 }
 
-function getStyleBrightness(style: ImageStyle): number {
-  switch (style) {
-    case 'noir': return -90;
-    case 'purple': return -60;
-    case 'cinematic': return -85;
-    default: return -75;
-  }
-}
-
+/**
+ * Costruisce l'URL Cloudinary con overlay — basato sul workflow n8n funzionante.
+ * Il pattern base è IDENTICO al workflow, con supporto custom aggiunto sopra.
+ */
 export function buildOverlayUrl(
   publicId: string,
   job: AcastingJob,
@@ -79,31 +78,42 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  const titleFont = cloudinaryFont(custom?.titleFont);
-  const titleSize = custom?.titleSize ?? 54;
-  const titleColor = toCloudinaryColor(custom?.titleColor ?? 'white');
+  // ── Resolve values (custom overrides > style defaults > base) ──
+  const titleText = custom?.titleText || job.title || 'Casting';
+  const titleSize = custom?.titleSize ?? 46;
+  const titleColor = cfColor(custom?.titleColor);
   const titleY = custom?.titleY ?? -250;
-  const titleText = custom?.titleText || job.title;
+  const titleFont = custom?.titleFont ?? 'Arial';
 
-  const subtitleFont = cloudinaryFont(custom?.subtitleFont);
-  const subtitleSize = custom?.subtitleSize ?? 46;
-  const subtitleColor = toCloudinaryColor(custom?.subtitleColor ?? 'white');
+  const bodySize = custom?.subtitleSize ?? 46;
+  const bodyColor = cfColor(custom?.subtitleColor);
+  const bodyFont = custom?.subtitleFont ?? 'Arial';
 
-  const ctaText = custom?.ctaText ?? 'ACASTING.SE';
-  const accentHex = custom?.accentColor ?? (style === 'purple' ? 'A78BFA' : '7C3AED');
-  const accentColor = toCloudinaryColor(accentHex);
+  const ctaText = custom?.ctaText ?? 'ACASTING';
+  const accentColor = cfColor(custom?.accentColor ?? '7C3AED');
 
-  const brightness = custom?.brightness ?? getStyleBrightness(style);
+  const brightness = custom?.brightness ?? (
+    style === 'noir' ? -90 :
+    style === 'purple' ? -60 :
+    style === 'cinematic' ? -85 : -75
+  );
 
+  // Prepara testi come nel workflow
+  const salaryText = !job.salary || job.salary === 'Ej angivet'
+    ? 'Arvode: Ej angivet'
+    : `Arvode: ${job.salary} kr`;
+  const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
+
+  // ── Build transforms — stessa struttura del workflow n8n ──
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,q_auto:best',
+    'w_1080,h_1920,c_fill,g_center,q_auto',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
-    `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.salary || 'Ej angivet')},g_center,y_40,w_900,c_fit,co_${subtitleColor}`,
-    `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.expiryDate || 'Löpande')},g_center,y_140,w_900,c_fit,co_${subtitleColor}`,
-    `l_text:${subtitleFont}_44_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_${subtitleColor}`,
-    `l_text:${titleFont}_52_bold_center:${enc(ctaText)},g_center,y_390,w_900,c_fit,co_${accentColor}`,
+    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${titleFont}_46_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
     'f_jpg'
   ].join('/');
 
@@ -111,7 +121,7 @@ export function buildOverlayUrl(
 }
 
 /**
- * HD Download URL - PNG max quality, no DPR trick
+ * HD Download URL — stessa logica ma qualità massima per il download
  */
 export function buildHDDownloadUrl(
   publicId: string,
@@ -121,31 +131,40 @@ export function buildHDDownloadUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  const titleFont = cloudinaryFont(custom?.titleFont);
-  const titleSize = custom?.titleSize ?? 54;
-  const titleColor = toCloudinaryColor(custom?.titleColor ?? 'white');
+  const titleText = custom?.titleText || job.title || 'Casting';
+  const titleSize = custom?.titleSize ?? 46;
+  const titleColor = cfColor(custom?.titleColor);
   const titleY = custom?.titleY ?? -250;
-  const titleText = custom?.titleText || job.title;
+  const titleFont = custom?.titleFont ?? 'Arial';
 
-  const subtitleFont = cloudinaryFont(custom?.subtitleFont);
-  const subtitleSize = custom?.subtitleSize ?? 46;
-  const subtitleColor = toCloudinaryColor(custom?.subtitleColor ?? 'white');
+  const bodySize = custom?.subtitleSize ?? 46;
+  const bodyColor = cfColor(custom?.subtitleColor);
+  const bodyFont = custom?.subtitleFont ?? 'Arial';
 
-  const ctaText = custom?.ctaText ?? 'ACASTING.SE';
-  const accentHex = custom?.accentColor ?? (style === 'purple' ? 'A78BFA' : '7C3AED');
-  const accentColor = toCloudinaryColor(accentHex);
+  const ctaText = custom?.ctaText ?? 'ACASTING';
+  const accentColor = cfColor(custom?.accentColor ?? '7C3AED');
 
-  const brightness = custom?.brightness ?? getStyleBrightness(style);
+  const brightness = custom?.brightness ?? (
+    style === 'noir' ? -90 :
+    style === 'purple' ? -60 :
+    style === 'cinematic' ? -85 : -75
+  );
 
+  const salaryText = !job.salary || job.salary === 'Ej angivet'
+    ? 'Arvode: Ej angivet'
+    : `Arvode: ${job.salary} kr`;
+  const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
+
+  // Stessa struttura ma q_100 e png per massima qualità download
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,q_100',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
-    `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.salary || 'Ej angivet')},g_center,y_40,w_900,c_fit,co_${subtitleColor}`,
-    `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.expiryDate || 'Löpande')},g_center,y_140,w_900,c_fit,co_${subtitleColor}`,
-    `l_text:${subtitleFont}_44_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_${subtitleColor}`,
-    `l_text:${titleFont}_52_bold_center:${enc(ctaText)},g_center,y_390,w_900,c_fit,co_${accentColor}`,
+    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${titleFont}_46_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
     'f_png'
   ].join('/');
 

@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
       publicId = await generatePlaceholderAndUpload(title);
     }
 
-    // Build a minimal job-like object for the overlay builder
     const jobData = {
       id: String(jobId),
       title: title || '',
