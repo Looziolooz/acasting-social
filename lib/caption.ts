@@ -1,6 +1,10 @@
 import type { AcastingJob, Platform } from './types';
 import { buildAcastingJobUrl } from './acasting';
 
+/**
+ * Builds a Swedish-language caption for social media posts.
+ * Swedish is intentionally kept here as the target audience is Swedish.
+ */
 export function buildCaption(job: AcastingJob, platform: Platform): string {
   const url = buildAcastingJobUrl(job.slugOrId);
   const salary = job.salary ? `${job.salary} kr` : 'Ej angivet';

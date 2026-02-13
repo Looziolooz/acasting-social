@@ -22,16 +22,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'jobId and platforms are required' }, { status: 400 });
     }
 
-    // Load job from DB
     const job = await db.processedJob.findUnique({ where: { jobId } });
-    if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
-    }
-    if (!job.generatedImage) {
-      return NextResponse.json({ error: 'No generated image found' }, { status: 400 });
-    }
+    if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    if (!job.generatedImage) return NextResponse.json({ error: 'No generated image found' }, { status: 400 });
 
-    // Build job data for caption builder
     const jobData = {
       id: job.jobId,
       title: job.title,
@@ -51,22 +45,16 @@ export async function POST(req: NextRequest) {
         const imageUrl = job.generatedImage!;
 
         switch (platform) {
-          case 'facebook':
-            return { platform, ...await publishToFacebook(imageUrl, caption) };
-          case 'instagram':
-            return { platform, ...await publishToInstagram(imageUrl, caption) };
-          case 'linkedin':
-            return { platform, ...await publishToLinkedIn(imageUrl, caption) };
-          case 'tiktok':
-            return { platform, ...await publishToTikTok(imageUrl, caption) };
-          default:
-            return { platform, success: false, error: 'Unknown platform' };
+          case 'facebook': return { platform, ...await publishToFacebook(imageUrl, caption) };
+          case 'instagram': return { platform, ...await publishToInstagram(imageUrl, caption) };
+          case 'linkedin': return { platform, ...await publishToLinkedIn(imageUrl, caption) };
+          case 'tiktok': return { platform, ...await publishToTikTok(imageUrl, caption) };
+          default: return { platform, success: false, error: 'Unknown platform' };
         }
       })
     );
 
     const successPlatforms = results.filter((r) => r.success).map((r) => r.platform);
-    const allSuccess = successPlatforms.length === platforms.length;
 
     if (successPlatforms.length > 0) {
       await db.processedJob.update({
@@ -80,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      success: allSuccess,
+      success: successPlatforms.length === platforms.length,
       results,
       publishedTo: successPlatforms,
     });

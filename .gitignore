@@ -1,15 +1,32 @@
-.env.local
-.env
+# Dependencies
 node_modules/
+
+# Next.js
 .next/
+out/
+
+# Vercel
+.vercel/
+
+# Environment files - NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Database
 prisma/*.db
 prisma/*.db-journal
+
+# Build
 dist/
-.vercel/
-.env.example
-.vercel
-.env*.local
-.env
-.env.local
-.env.production
-.env*.local
+
+# Debug
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

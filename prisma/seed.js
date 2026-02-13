@@ -2,26 +2,24 @@ const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Inizio seeding...')
+  console.log('Starting seed...')
   const job = await prisma.processedJob.upsert({
     where: { jobId: 'test-1' },
     update: {},
     create: {
       jobId: 'test-1',
-      title: 'Attore per Spot Pubblicitario',
+      title: 'Actor for Commercial',
       salary: '5000',
-      city: 'Roma',
+      city: 'Stockholm',
       slugOrId: 'spot-test-1',
-      status: 'pending'
+      status: 'pending',
     },
   })
-  console.log({ job })
+  console.log('Seeded:', job)
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect()
-  })
+  .then(async () => await prisma.$disconnect())
   .catch(async (e) => {
     console.error(e)
     await prisma.$disconnect()

@@ -54,26 +54,26 @@ export interface PublishResult {
 
 export const STYLE_LABELS: Record<ImageStyle, { label: string; desc: string; brightness: number; color: string }> = {
   dark: {
-    label: 'Cinematica',
-    desc: 'Overlay scuro classico',
+    label: 'Cinematic',
+    desc: 'Classic dark overlay',
     brightness: -80,
     color: 'white',
   },
   purple: {
-    label: 'Viola Acasting',
-    desc: 'Tono brand ufficiale',
+    label: 'Acasting Purple',
+    desc: 'Official brand tone',
     brightness: -60,
     color: 'white',
   },
   noir: {
     label: 'Noir',
-    desc: 'Contrasto massimo',
+    desc: 'Maximum contrast',
     brightness: -95,
     color: 'white',
   },
   warm: {
-    label: 'Calda',
-    desc: 'Tono caldo cinematico',
+    label: 'Warm',
+    desc: 'Warm cinematic tone',
     brightness: -65,
     color: 'FFEDD8',
   },

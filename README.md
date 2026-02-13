@@ -1,334 +1,176 @@
 # 🎬 Acasting Social Publisher
 
-App Next.js per estrarre annunci da **Acasting.se**, generare immagini con overlay brandizzato e pubblicare su **LinkedIn, Facebook, Instagram e TikTok**.
+Next.js app to fetch casting listings from **Acasting.se**, generate branded overlay images, and publish to **LinkedIn, Facebook, Instagram, and TikTok**.
+
+> **Note:** All generated image text and social media captions are in **Swedish** (target audience). The dashboard UI is in English.
 
 ---
 
-## ✨ Funzionalità
+## ✨ Features
 
-- 📥 **Fetch automatico** degli annunci da Acasting.se
-- 🎨 **4 stili grafici** di overlay (Cinematica, Viola Acasting, Noir, Calda)
-- 👁 **Anteprima immagine** prima di pubblicare
-- ✅ **Approva o Rigenera** con un click
-- 📲 **Pubblicazione multi-piattaforma**: Facebook, Instagram, LinkedIn, TikTok
-- 🧠 **Database locale** (SQLite) per tracciare cosa è già stato pubblicato
-- 📜 **Storico pubblicazioni** con immagini
-
----
-
-## 🗂 Struttura del progetto
-
-```
-acasting-social/
-├── app/
-│   ├── api/
-│   │   ├── jobs/route.ts         # Fetch annunci Acasting
-│   │   ├── generate/route.ts     # Genera immagine con Cloudinary
-│   │   ├── publish/route.ts      # Pubblica sui social
-│   │   └── history/route.ts      # Storico pubblicazioni
-│   ├── page.tsx                  # Dashboard principale
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   ├── JobCard.tsx               # Carta singolo annuncio
-│   ├── ImageReviewModal.tsx      # Modal approvazione immagine
-│   └── HistoryPanel.tsx          # Pannello storico
-├── lib/
-│   ├── types.ts                  # TypeScript types
-│   ├── db.ts                     # Prisma client
-│   ├── acasting.ts               # API Acasting.se
-│   ├── cloudinary.ts             # Generazione immagini
-│   ├── caption.ts                # Generazione caption
-│   └── social/
-│       ├── facebook.ts
-│       ├── instagram.ts
-│       ├── linkedin.ts
-│       └── tiktok.ts
-└── prisma/schema.prisma
-```
+- 📥 **Auto-fetch** listings from Acasting.se
+- 🎨 **4 image styles** (Cinematic, Acasting Purple, Noir, Warm)
+- 👁 **Image preview** before publishing
+- ✅ **Approve or Regenerate** with one click
+- 📲 **Multi-platform publishing**: Facebook, Instagram, LinkedIn, TikTok
+- 🗄️ **PostgreSQL database** (Vercel Postgres / Neon) for tracking
+- 📜 **Publication history** with images
 
 ---
 
-## 🚀 Installazione locale
+## 🚀 Quick Start
 
-### 1. Prerequisiti
+### Prerequisites
 
-- **Node.js** v18 o superiore → [nodejs.org](https://nodejs.org)
-- **npm** o **pnpm**
-- Account **Cloudinary** (gratuito) → [cloudinary.com](https://cloudinary.com)
+- **Node.js** v18+ → [nodejs.org](https://nodejs.org)
+- **Cloudinary** account (free) → [cloudinary.com](https://cloudinary.com)
+- **Vercel** account → [vercel.com](https://vercel.com)
 
-### 2. Clona / Crea il progetto
+### 1. Clone & Install
 
 ```bash
 git clone <repo-url> acasting-social
 cd acasting-social
-```
-
-### 3. Installa le dipendenze
-
-```bash
 npm install
 ```
 
-### 4. Configura le variabili d'ambiente
+### 2. Set Up Environment Variables
 
 ```bash
 cp .env.example .env.local
 ```
 
-Poi apri `.env.local` e compila i valori (vedi sezione **Configurazione API** qui sotto).
+Fill in your values in `.env.local`. See **Security Guide** below.
 
-### 5. Inizializza il database
+### 3. Set Up Database
 
 ```bash
-npm run db:generate   # genera il Prisma client
-npm run db:push       # crea il file SQLite
+npx prisma db push
+npx prisma generate
 ```
 
-### 6. Avvia in sviluppo
+### 4. Run Locally
 
 ```bash
 npm run dev
 ```
 
-Apri [http://localhost:3000](http://localhost:3000) nel browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🔑 Configurazione API
+## 🔒 Security Guide — Avoiding Credential Leaks
 
-### Cloudinary (OBBLIGATORIO per le immagini)
+### ⚠️ CRITICAL RULES
 
-1. Registrati su [cloudinary.com](https://cloudinary.com) (piano gratuito sufficiente)
-2. Vai su **Dashboard** → copia `Cloud Name`, `API Key`, `API Secret`
-3. Aggiungi al `.env.local`:
+1. **NEVER put real credentials in `.env.example`** — only placeholders
+2. **NEVER commit `.env`, `.env.local`, or any file with real secrets**
+3. **Always verify `.gitignore`** includes all env files before pushing
+4. **Use `npx vercel env pull`** to sync Vercel env vars locally
 
-```env
-CLOUDINARY_CLOUD_NAME=il_tuo_cloud_name
-CLOUDINARY_API_KEY=123456789012345
-CLOUDINARY_API_SECRET=abc123XYZ...
+### Pre-commit Checklist
+
+Before every `git push`, run:
+
+```bash
+# Check that no secrets are staged
+git diff --cached --name-only | grep -E '\.env' && echo "⚠️  ENV FILE STAGED!" || echo "✅ Clean"
+
+# Double-check .env.example has no real values
+grep -E '(sk_|eyJ|postgres://[a-z0-9])' .env.example && echo "⚠️  REAL CREDENTIALS IN .env.example!" || echo "✅ Clean"
 ```
 
+### Where to Store Secrets
+
+| Environment | Where | How |
+|-------------|-------|-----|
+| **Local dev** | `.env.local` | Manual or `npx vercel env pull` |
+| **Vercel Production** | Vercel Dashboard → Settings → Env Vars | Added via UI or CLI |
+| **CI/CD** | Vercel handles automatically | Connected via Storage integration |
+
+### Setting Up Vercel Postgres (Neon)
+
+1. Go to Vercel Dashboard → your project → **Storage**
+2. Click **Neon** → Create database
+3. Set Custom Prefix to `POSTGRES` (creates `POSTGRES_PRISMA_URL` and `POSTGRES_URL_NON_POOLING`)
+4. Click **Connect**
+5. Pull env vars locally: `npx vercel env pull .env.local`
+6. Push schema: `npx prisma db push`
+
 ---
+
+## 🔑 API Configuration
+
+### Cloudinary (Required)
+
+1. Sign up at [cloudinary.com](https://cloudinary.com)
+2. Dashboard → copy Cloud Name, API Key, API Secret
+3. Add to Vercel env vars and `.env.local`
 
 ### Facebook & Instagram (Meta Graph API)
 
-> Richiede una **Pagina Facebook** e un **Account Instagram Business** collegato.
-
-#### Step 1 — Crea un'app Meta
-
-1. Vai su [developers.facebook.com](https://developers.facebook.com)
-2. **My Apps** → **Create App** → tipo **Business**
-3. Aggiungi i prodotti: **Facebook Login** + **Instagram Graph API**
-
-#### Step 2 — Genera il Page Access Token
-
-1. Vai su [Meta Graph API Explorer](https://developers.facebook.com/tools/explorer/)
-2. Seleziona la tua app
-3. Permissions da aggiungere:
-   - `pages_manage_posts`
-   - `pages_read_engagement`
-   - `instagram_basic`
-   - `instagram_content_publish`
-4. Clicca **Generate Access Token** → autorizza
-5. Converti in **token di lunga durata**:
-
-```bash
-curl "https://graph.facebook.com/v20.0/oauth/access_token?grant_type=fb_exchange_token&client_id=APP_ID&client_secret=APP_SECRET&fb_exchange_token=SHORT_TOKEN"
-```
-
-#### Step 3 — Trova gli ID
-
-```bash
-# Facebook Page ID
-curl "https://graph.facebook.com/v20.0/me/accounts?access_token=TOKEN"
-
-# Instagram Business ID
-curl "https://graph.facebook.com/v20.0/PAGE_ID?fields=instagram_business_account&access_token=TOKEN"
-```
-
-```env
-META_ACCESS_TOKEN=EAABsbCS...
-FACEBOOK_PAGE_ID=123456789012345
-INSTAGRAM_BUSINESS_ID=987654321098765
-```
-
----
+1. Create app at [developers.facebook.com](https://developers.facebook.com)
+2. Add products: Facebook Login + Instagram Graph API
+3. Generate Page Access Token with permissions:
+   - `pages_manage_posts`, `pages_read_engagement`
+   - `instagram_basic`, `instagram_content_publish`
+4. Convert to long-lived token (~60 days)
+5. Find Page ID and Instagram Business ID via Graph API
 
 ### LinkedIn
 
-> Richiede una **Company Page** LinkedIn.
-
-#### Step 1 — Crea un'app LinkedIn
-
-1. Vai su [developer.linkedin.com](https://www.linkedin.com/developers/)
-2. **Create App** → collega la tua Company Page
-3. In **Products**, aggiungi: **Share on LinkedIn** + **Marketing Developer Platform**
-4. Vai su **Auth** → copia `Client ID` e `Client Secret`
-
-#### Step 2 — Genera OAuth Token
-
-Usa la [LinkedIn OAuth 2.0 tool](https://www.linkedin.com/developers/tools/oauth):
-
-Scopes necessari:
-- `w_member_social`
-- `r_organization_social`
-- `w_organization_social`
-- `rw_organization_admin`
-
-#### Step 3 — Trova l'Organization ID
-
-```bash
-curl -X GET "https://api.linkedin.com/v2/organizationAcls?q=roleAssignee" \
-  -H "Authorization: Bearer TOKEN"
-```
-
-```env
-LINKEDIN_ACCESS_TOKEN=AQX...
-LINKEDIN_ORGANIZATION_ID=12345678
-```
-
----
+1. Create app at [developer.linkedin.com](https://developer.linkedin.com)
+2. Add products: Share on LinkedIn + Marketing Developer Platform
+3. Generate OAuth token with scopes: `w_member_social`, `w_organization_social`
+4. Find Organization ID via API
 
 ### TikTok
 
-> Richiede approvazione speciale per **Content Posting API**.
-
-1. Vai su [developers.tiktok.com](https://developers.tiktok.com)
-2. Crea un'app e richiedi accesso a **Content Posting API**
-3. Implementa il flusso OAuth e ottieni `access_token` e `open_id`
-
-```env
-TIKTOK_ACCESS_TOKEN=att_...
-TIKTOK_OPEN_ID=abc123...
-```
-
-> **Nota**: TikTok richiede verifica business per la pubblicazione automatica. Per ora puoi testare gli altri social e aggiungere TikTok in seguito.
+1. Create app at [developers.tiktok.com](https://developers.tiktok.com)
+2. Request Content Posting API access (requires business verification)
 
 ---
 
-## 📦 Build per produzione
+## 📦 Deploy to Vercel
 
 ```bash
-npm run build
-npm start
-```
-
----
-
-## ☁️ Deploy su Vercel (raccomandato)
-
-### 1. Installa Vercel CLI
-
-```bash
-npm i -g vercel
-```
-
-### 2. Deploy
-
-```bash
+# Deploy
 vercel
+
+# Or link and deploy
+vercel link
+vercel deploy --prod
 ```
 
-### 3. Aggiungi le variabili d'ambiente
-
-Nel Vercel Dashboard → **Settings** → **Environment Variables**, aggiungi tutte le variabili dal `.env.local`.
-
-### 4. Database in produzione
-
-Per Vercel, usa un DB hosted invece di SQLite:
-
-**Opzione A — Vercel Postgres (raccomandato)**:
-```bash
-vercel storage create  # crea un Postgres DB
-```
-Poi cambia `schema.prisma`:
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
-}
-```
-
-**Opzione B — Railway / Supabase**:
-Stessa modifica al `schema.prisma`, copia la connection string.
-
-### 5. Aggiorna database in produzione
-
-```bash
-npm run db:push
-# oppure
-npx prisma migrate deploy
-```
+Environment variables are auto-populated from Vercel Storage connection and manual entries.
 
 ---
 
-## 🎨 Come funziona il flusso
-
-```
-1. Clicca "Aggiorna"
-      ↓
-2. App fetcha gli ultimi 50 annunci da acasting.se
-      ↓
-3. Confronta con il DB locale (niente duplicati)
-      ↓
-4. Vedi la griglia con gli annunci
-      ↓
-5. Scegli uno stile → "Genera Immagine"
-      ↓
-6. Cloudinary crea l'immagine con overlay
-      ↓
-7. Vedi l'anteprima → Approva o Rigenera
-      ↓
-8. Se Approva → scegli le piattaforme
-      ↓
-9. Pubblica → vedi i risultati per ogni piattaforma
-      ↓
-10. L'annuncio viene marcato come "Pubblicato"
-```
-
----
-
-## 🖼 Stili immagine disponibili
-
-| Stile | Descrizione | Brightness |
-|-------|-------------|------------|
-| Cinematica | Overlay scuro classico | -80% |
-| Viola Acasting | Tono brand viola | -60% |
-| Noir | Contrasto massimo | -95% |
-| Calda | Tonalità cinematica calda | -65% |
-
----
-
-## 🛠 Script utili
+## 🛠 Scripts
 
 ```bash
-npm run dev          # Avvia sviluppo (http://localhost:3000)
-npm run build        # Build produzione
-npm run db:studio    # Prisma Studio (GUI database)
-npm run db:push      # Sincronizza schema DB
+npm run dev          # Start development server
+npm run build        # Production build
+npm run db:studio    # Prisma Studio (database GUI)
+npm run db:push      # Sync schema to database
 npm run lint         # ESLint
 ```
 
 ---
 
-## ❓ Problemi comuni
+## ❓ Troubleshooting
 
-**Errore Cloudinary "Invalid image URL"**
-→ Assicurati che l'immagine di Acasting sia pubblicamente accessibile.
-
-**Errore Facebook "OAuthException"**
-→ Il token è scaduto. Rigenera un token di lunga durata (dura ~60 giorni).
-
-**Errore Instagram "Media not ready"**
-→ Normale, il sistema attende che Meta processi l'immagine (fino a 30 secondi).
-
-**Database error su Vercel**
-→ SQLite non funziona su Vercel (filesystem read-only). Usa Vercel Postgres.
+| Problem | Solution |
+|---------|----------|
+| Cloudinary "Invalid image URL" | Ensure the Acasting image is publicly accessible |
+| Facebook "OAuthException" | Token expired — regenerate long-lived token |
+| Instagram "Media not ready" | Normal — system waits up to 30s for processing |
+| Database error on Vercel | Use Vercel Postgres, not SQLite |
+| No listings showing on deploy | Check Vercel Logs tab for Acasting API errors |
+| GitGuardian alert | Rotate ALL exposed credentials immediately |
 
 ---
 
-## 📄 Licenza
+## 📄 License
 
-MIT — Progetto interno Acasting
+MIT — Internal Acasting Project

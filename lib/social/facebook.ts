@@ -10,23 +10,13 @@ export async function publishToFacebook(
   }
 
   try {
-    // Step 1: Upload photo to Facebook Page
-    const res = await fetch(
-      `https://graph.facebook.com/v20.0/${pageId}/photos`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: imageUrl,
-          caption,
-          access_token: accessToken,
-          published: true,
-        }),
-      }
-    );
+    const res = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: imageUrl, caption, access_token: accessToken, published: true }),
+    });
 
     const data = await res.json();
-
     if (!res.ok || data.error) {
       return { success: false, error: data.error?.message || 'Facebook API error' };
     }
