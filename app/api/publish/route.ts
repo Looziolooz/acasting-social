@@ -7,6 +7,8 @@ import { buildCaption } from '@/lib/caption';
 import { db } from '@/lib/db';
 import type { Platform, PublishResult } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

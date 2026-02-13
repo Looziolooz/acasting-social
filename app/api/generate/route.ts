@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { uploadImageToCloudinary, buildOverlayUrl, generatePlaceholderAndUpload } from '@/lib/cloudinary';
 import { db } from '@/lib/db';
 import type { ImageStyle } from '@/lib/types';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
