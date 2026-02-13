@@ -16,7 +16,7 @@ export async function uploadImageToCloudinary(imageUrl: string): Promise<string>
 
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'acasting', quality: 'auto:best', format: 'jpg' },
+      { folder: 'acasting' },
       (error, result) => {
         if (error) return reject(error);
         resolve(result!.public_id);
@@ -43,23 +43,32 @@ const enc = (text: string) =>
     .replace(/,/g, '%2C')
     .replace(/\//g, '%2F');
 
-// Map font name to Cloudinary-safe font identifier
 function cloudinaryFont(fontName?: string): string {
   if (!fontName) return 'Arial';
-  // Cloudinary uses underscores for spaces in font names
   return fontName.replace(/\s+/g, '%20');
 }
 
-// Normalize color - strip # if present, handle named colors
-function normalizeColor(color?: string): string {
+/**
+ * Normalizza i colori per Cloudinary URL overlay.
+ * Cloudinary accetta: co_white, co_black, co_rgb:HEXCODE
+ */
+function toCloudinaryColor(color?: string): string {
   if (!color) return 'white';
-  if (color === 'white') return 'white';
-  if (color === 'black') return 'rgb:000000';
-  // If it starts with #, strip it and use rgb: prefix
-  if (color.startsWith('#')) return `rgb:${color.slice(1)}`;
-  // If it's a hex without #, add rgb: prefix
-  if (/^[0-9A-Fa-f]{6}$/.test(color)) return `rgb:${color}`;
-  return color;
+  if (color === 'white' || color === 'black') return color;
+  // Strip # if present
+  const hex = color.startsWith('#') ? color.slice(1) : color;
+  // If it's a valid 6-char hex, use rgb: prefix
+  if (/^[0-9A-Fa-f]{6}$/.test(hex)) return `rgb:${hex}`;
+  return 'white';
+}
+
+function getStyleBrightness(style: ImageStyle): number {
+  switch (style) {
+    case 'noir': return -90;
+    case 'purple': return -60;
+    case 'cinematic': return -85;
+    default: return -75;
+  }
 }
 
 export function buildOverlayUrl(
@@ -70,59 +79,39 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  // Resolve settings from style + custom overrides
-  const titleFont = cloudinaryFont(custom?.titleFont ?? 'Arial');
+  const titleFont = cloudinaryFont(custom?.titleFont);
   const titleSize = custom?.titleSize ?? 54;
-  const titleColor = normalizeColor(custom?.titleColor ?? 'white');
+  const titleColor = toCloudinaryColor(custom?.titleColor ?? 'white');
   const titleY = custom?.titleY ?? -250;
   const titleText = custom?.titleText || job.title;
 
-  const subtitleFont = cloudinaryFont(custom?.subtitleFont ?? 'Arial');
+  const subtitleFont = cloudinaryFont(custom?.subtitleFont);
   const subtitleSize = custom?.subtitleSize ?? 46;
-  const subtitleColor = normalizeColor(custom?.subtitleColor ?? 'white');
+  const subtitleColor = toCloudinaryColor(custom?.subtitleColor ?? 'white');
 
-  const ctaColor = normalizeColor(custom?.ctaColor ?? '7C3AED');
   const ctaText = custom?.ctaText ?? 'ACASTING.SE';
-
   const accentHex = custom?.accentColor ?? (style === 'purple' ? 'A78BFA' : '7C3AED');
-  const accentColor = normalizeColor(accentHex);
+  const accentColor = toCloudinaryColor(accentHex);
 
-  const brightness = custom?.brightness ?? (
-    style === 'noir' ? -90 :
-    style === 'purple' ? -60 :
-    style === 'cinematic' ? -85 : -75
-  );
+  const brightness = custom?.brightness ?? getStyleBrightness(style);
 
-  const outputFormat = custom?.outputFormat ?? 'jpg';
-  const outputQuality = custom?.outputQuality ?? 100;
-
-  // Build transformation chain - HD quality pipeline
   const transforms = [
-    // Base: fill to 1080x1920, high DPR, max quality
-    `w_1080,h_1920,c_fill,g_center,dpr_2.0,q_${outputQuality},fl_force_strip`,
-    // Brightness overlay
+    'w_1080,h_1920,c_fill,g_center,q_auto:best',
     `e_brightness:${brightness}`,
-    // Title text
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
-    // Separator line
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
-    // Salary
     `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.salary || 'Ej angivet')},g_center,y_40,w_900,c_fit,co_${subtitleColor}`,
-    // Expiry date
     `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.expiryDate || 'Löpande')},g_center,y_140,w_900,c_fit,co_${subtitleColor}`,
-    // CTA text
     `l_text:${subtitleFont}_44_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_${subtitleColor}`,
-    // Brand CTA
     `l_text:${titleFont}_52_bold_center:${enc(ctaText)},g_center,y_390,w_900,c_fit,co_${accentColor}`,
-    // Output format
-    `f_${outputFormat}`,
+    'f_jpg'
   ].join('/');
 
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.${outputFormat}`;
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
 }
 
 /**
- * Builds an HD download URL - even higher quality for saving
+ * HD Download URL - PNG max quality, no DPR trick
  */
 export function buildHDDownloadUrl(
   publicId: string,
@@ -132,30 +121,24 @@ export function buildHDDownloadUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  const titleFont = cloudinaryFont(custom?.titleFont ?? 'Arial');
+  const titleFont = cloudinaryFont(custom?.titleFont);
   const titleSize = custom?.titleSize ?? 54;
-  const titleColor = normalizeColor(custom?.titleColor ?? 'white');
+  const titleColor = toCloudinaryColor(custom?.titleColor ?? 'white');
   const titleY = custom?.titleY ?? -250;
   const titleText = custom?.titleText || job.title;
 
-  const subtitleFont = cloudinaryFont(custom?.subtitleFont ?? 'Arial');
+  const subtitleFont = cloudinaryFont(custom?.subtitleFont);
   const subtitleSize = custom?.subtitleSize ?? 46;
-  const subtitleColor = normalizeColor(custom?.subtitleColor ?? 'white');
+  const subtitleColor = toCloudinaryColor(custom?.subtitleColor ?? 'white');
 
-  const ctaColor = normalizeColor(custom?.ctaColor ?? '7C3AED');
   const ctaText = custom?.ctaText ?? 'ACASTING.SE';
   const accentHex = custom?.accentColor ?? (style === 'purple' ? 'A78BFA' : '7C3AED');
-  const accentColor = normalizeColor(accentHex);
+  const accentColor = toCloudinaryColor(accentHex);
 
-  const brightness = custom?.brightness ?? (
-    style === 'noir' ? -90 :
-    style === 'purple' ? -60 :
-    style === 'cinematic' ? -85 : -75
-  );
+  const brightness = custom?.brightness ?? getStyleBrightness(style);
 
-  // Max quality download - no DPR trick, native 1080x1920 at q_100
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,q_100,fl_force_strip.lossy',
+    'w_1080,h_1920,c_fill,g_center,q_100',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
@@ -163,7 +146,7 @@ export function buildHDDownloadUrl(
     `l_text:${subtitleFont}_${subtitleSize}_bold_center:${enc(job.expiryDate || 'Löpande')},g_center,y_140,w_900,c_fit,co_${subtitleColor}`,
     `l_text:${subtitleFont}_44_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_${subtitleColor}`,
     `l_text:${titleFont}_52_bold_center:${enc(ctaText)},g_center,y_390,w_900,c_fit,co_${accentColor}`,
-    'f_png', // PNG for max quality download
+    'f_png'
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.png`;

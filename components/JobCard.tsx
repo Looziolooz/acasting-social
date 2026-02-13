@@ -2,8 +2,6 @@
 
 import { MapPin, Clock, Coins, Sparkles, SkipForward, CheckCircle2, RotateCcw } from 'lucide-react';
 import type { AnnotatedJob, ImageStyle, CustomImageSettings } from '@/lib/types';
-import { STYLE_LABELS } from '@/lib/types';
-import { useState } from 'react';
 import Image from 'next/image';
 
 interface Props { 
@@ -18,7 +16,6 @@ const STATUS_COLORS: Record<string, string> = { published: '#10b981', generated:
 const STATUS_LABELS: Record<string, string> = { published: 'Published', generated: 'Generated', skipped: 'Skipped' };
 
 export default function JobCard({ job, index, onGenerate, onSkip, onRestore }: Props) {
-  const [showStyles, setShowStyles] = useState(false);
   const isDone = job.processedStatus === 'published';
   const isSkipped = job.processedStatus === 'skipped';
   const animDelay = Math.min(index * 60, 400);
@@ -70,27 +67,11 @@ export default function JobCard({ job, index, onGenerate, onSkip, onRestore }: P
 
         {!isDone && !isSkipped ? (
           <div className="flex flex-col gap-2">
-            <div className="relative">
-              <button onClick={() => setShowStyles((p) => !p)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 active:scale-95"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))', color: 'white' }}>
-                <Sparkles size={14} /> Generate Image
-              </button>
-              {showStyles && (
-                <div className="absolute top-full left-0 right-0 mt-2 rounded-xl overflow-hidden z-10 shadow-2xl"
-                  style={{ background: 'var(--surface-3)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  {(Object.entries(STYLE_LABELS) as [ImageStyle, typeof STYLE_LABELS[ImageStyle]][]).map(([styleKey, config]) => (
-                    <button key={styleKey} onClick={() => { setShowStyles(false); onGenerate(styleKey); }}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left">
-                      <div>
-                        <div className="text-sm font-medium text-white">{config.label}</div>
-                        <div className="text-xs text-white/40">{config.desc}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button onClick={() => onGenerate('cinematic')}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))', color: 'white' }}>
+              <Sparkles size={14} /> Generate Image
+            </button>
             <button onClick={onSkip} className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs text-white/30 hover:text-white/60 transition-colors font-medium">
               <SkipForward size={12} /> Skip listing
             </button>

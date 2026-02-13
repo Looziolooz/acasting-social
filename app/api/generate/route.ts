@@ -19,9 +19,23 @@ export async function POST(req: NextRequest) {
       publicId = await generatePlaceholderAndUpload(title);
     }
 
-    const jobData = { ...body, title, salary, city, expiryDate, slugOrId };
-    const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle, customSettings as CustomImageSettings);
-    const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData, style as ImageStyle, customSettings as CustomImageSettings);
+    // Build a minimal job-like object for the overlay builder
+    const jobData = {
+      id: String(jobId),
+      title: title || '',
+      description: body.description || '',
+      salary: salary || null,
+      city: city || null,
+      expiryDate: expiryDate ? String(expiryDate).split('T')[0] : null,
+      slugOrId: slugOrId || '',
+      category: body.category || null,
+      imageUrl: originalImage || null,
+      createdAt: new Date().toISOString(),
+    };
+
+    const parsedCustom: CustomImageSettings | undefined = customSettings || undefined;
+    const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle, parsedCustom);
+    const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData, style as ImageStyle, parsedCustom);
 
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
@@ -36,14 +50,13 @@ export async function POST(req: NextRequest) {
       update: { generatedImage: generatedImageUrl, style, status: 'generated' },
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       imageUrl: generatedImageUrl,
       hdDownloadUrl,
-      publicId, // Return for potential re-generation without re-upload
     });
   } catch (error) {
     console.error('Generate error:', error);
-    return NextResponse.json({ error: "Errore API generazione" }, { status: 500 });
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
