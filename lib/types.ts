@@ -17,15 +17,59 @@ export interface AnnotatedJob extends AcastingJob {
   processedStatus: string | null;
 }
 
+export const AVAILABLE_FONTS = [
+  { value: 'Arial', label: 'Arial', cloudinary: 'Arial' },
+  { value: 'Georgia', label: 'Georgia', cloudinary: 'Georgia' },
+  { value: 'Roboto', label: 'Roboto', cloudinary: 'Roboto' },
+  { value: 'Montserrat', label: 'Montserrat', cloudinary: 'Montserrat' },
+  { value: 'Playfair Display', label: 'Playfair', cloudinary: 'Playfair%20Display' },
+  { value: 'Oswald', label: 'Oswald', cloudinary: 'Oswald' },
+  { value: 'Lato', label: 'Lato', cloudinary: 'Lato' },
+  { value: 'Raleway', label: 'Raleway', cloudinary: 'Raleway' },
+] as const;
+
 export interface CustomImageSettings {
+  // Title
+  titleText?: string;
   titleFont?: string;
   titleColor?: string;
   titleSize?: number;
   titleY?: number;
-  salaryColor?: string;
-  bgColor?: string;
+  // Subtitle / Salary
+  subtitleFont?: string;
+  subtitleColor?: string;
+  subtitleSize?: number;
+  // CTA
+  ctaColor?: string;
+  ctaText?: string;
+  // Background / Overlay
+  bgOverlayColor?: string;
+  bgOverlayOpacity?: number;
   brightness?: number;
+  // Accent
+  accentColor?: string;
+  // Quality
+  outputFormat?: 'jpg' | 'png';
+  outputQuality?: number;
 }
+
+export const DEFAULT_CUSTOM_SETTINGS: CustomImageSettings = {
+  titleFont: 'Arial',
+  titleColor: 'white',
+  titleSize: 54,
+  titleY: -250,
+  subtitleFont: 'Arial',
+  subtitleColor: 'white',
+  subtitleSize: 46,
+  ctaColor: '7C3AED',
+  ctaText: 'ACASTING.SE',
+  bgOverlayColor: '000000',
+  bgOverlayOpacity: 75,
+  brightness: -75,
+  accentColor: '7C3AED',
+  outputFormat: 'jpg',
+  outputQuality: 100,
+};
 
 export interface ProcessedJob {
   id: string;
@@ -48,7 +92,7 @@ export interface ProcessedJob {
 }
 
 export type JobStatus = 'pending' | 'generated' | 'approved' | 'published' | 'skipped';
-export type ImageStyle = 'dark' | 'purple' | 'noir' | 'custom'; 
+export type ImageStyle = 'cinematic' | 'purple' | 'noir' | 'custom';
 export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'tiktok';
 
 export interface PublishResult {
@@ -59,10 +103,10 @@ export interface PublishResult {
 }
 
 export const STYLE_LABELS: Record<ImageStyle, { label: string; desc: string; brightness: number; color: string }> = {
-  dark: { label: 'Cinematic', desc: 'Dark overlay HD', brightness: -85, color: 'white' },
-  purple: { label: 'Acasting Purple', desc: 'Brand tone', brightness: -60, color: 'white' },
+  cinematic: { label: 'Cinematic', desc: 'Dark HD overlay, film look', brightness: -85, color: 'white' },
+  purple: { label: 'Acasting Purple', desc: 'Brand tone, violet accents', brightness: -60, color: 'white' },
   noir: { label: 'Noir', desc: 'Max contrast B&W', brightness: -95, color: 'white' },
-  custom: { label: 'Custom Edit', desc: 'Manual layout & HD settings', brightness: -65, color: 'white' },
+  custom: { label: 'Custom Studio', desc: 'Full control: fonts, colors, layout', brightness: -65, color: 'white' },
 };
 
 export const PLATFORM_CONFIG: Record<Platform, { label: string; color: string; icon: string }> = {
@@ -71,3 +115,15 @@ export const PLATFORM_CONFIG: Record<Platform, { label: string; color: string; i
   linkedin: { label: 'LinkedIn', color: '#0A66C2', icon: 'linkedin' },
   tiktok: { label: 'TikTok', color: '#000000', icon: 'tiktok' },
 };
+
+export const COLOR_PRESETS = [
+  { value: 'white', label: 'White', hex: '#FFFFFF' },
+  { value: 'FFDF00', label: 'Gold', hex: '#FFDF00' },
+  { value: '7C3AED', label: 'Purple', hex: '#7C3AED' },
+  { value: 'A78BFA', label: 'Lavender', hex: '#A78BFA' },
+  { value: '10B981', label: 'Emerald', hex: '#10B981' },
+  { value: 'F59E0B', label: 'Amber', hex: '#F59E0B' },
+  { value: 'EF4444', label: 'Red', hex: '#EF4444' },
+  { value: '3B82F6', label: 'Blue', hex: '#3B82F6' },
+  { value: '000000', label: 'Black', hex: '#000000' },
+] as const;

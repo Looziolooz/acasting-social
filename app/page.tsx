@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState<Tab>('new');
   const [selectedJob, setSelectedJob] = useState<AnnotatedJob | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [currentStyle, setCurrentStyle] = useState<ImageStyle>('dark');
+const [currentStyle, setCurrentStyle] = useState<ImageStyle>('cinematic');
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<'all' | 'new' | 'done'>('all');
 
@@ -34,8 +34,7 @@ export default function Dashboard() {
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
-  const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'dark', custom?: CustomImageSettings) => {
-    setSelectedJob(job);
+const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'cinematic', custom?: CustomImageSettings) => {    setSelectedJob(job);
     setCurrentStyle(style);
     setGenerating(true);
     setGeneratedImage(null);
