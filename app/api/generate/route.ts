@@ -8,9 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { jobId, title, salary, city, expiryDate, slugOrId, originalImage, style = 'dark' } = body;
-
-    console.log(`[API Generate] Ricevuta richiesta per jobId: ${jobId}`);
+    const { jobId, title, salary, city, expiryDate, slugOrId, originalImage, style = 'dark', description, category } = body;
 
     if (!jobId) return NextResponse.json({ error: 'jobId mancante' }, { status: 400 });
 
@@ -19,30 +17,29 @@ export async function POST(req: NextRequest) {
       if (originalImage && originalImage.startsWith('http')) {
         publicId = await uploadImageToCloudinary(originalImage);
       } else {
-        console.log("[API Generate] Nessuna immagine originale, uso placeholder");
         publicId = await generatePlaceholderAndUpload(title);
       }
     } catch (e) {
-      console.error("[API Generate] Fallimento upload, ripiego su placeholder HD:", e);
       publicId = await generatePlaceholderAndUpload(title);
     }
 
     const generatedImageUrl = buildOverlayUrl(publicId, body, style as ImageStyle);
-    console.log(`[API Generate] Immagine generata: ${generatedImageUrl}`);
 
-    // Salvataggio DB
+    // FIX CRITICO: Passiamo a Prisma solo i campi esistenti nel modello schema.prisma
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
         jobId: String(jobId),
-        title,
-        salary,
-        city,
-        expiryDate: expiryDate ? expiryDate.split('T')[0] : null,
-        slugOrId,
-        originalImage,
+        title: title || 'Casting',
+        description: description || null,
+        salary: salary || null,
+        city: city || null,
+        expiryDate: expiryDate ? String(expiryDate).split('T')[0] : null,
+        slugOrId: slugOrId || String(jobId),
+        category: category || null,
+        originalImage: originalImage || null,
         generatedImage: generatedImageUrl,
-        style,
+        style: String(style),
         status: 'generated',
       },
       update: {
@@ -53,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, imageUrl: generatedImageUrl });
   } catch (error: any) {
-    console.error('[API Generate] Errore irreversibile:', error);
-    return NextResponse.json({ error: error.message || 'Errore interno' }, { status: 500 });
+    console.error('[API Generate] Errore Prisma:', error);
+    return NextResponse.json({ error: 'Errore validazione database' }, { status: 500 });
   }
 }
