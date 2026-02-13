@@ -52,7 +52,8 @@ function cfColor(color?: string): string {
 }
 
 /**
- * Genera URL HD con dpr_2.0 e q_100 per massima nitidezza testi
+ * Genera l'URL HD. 
+ * Miglioramenti: dpr_2.0 per Retina, q_100 per zero compressione, f_png per testi nitidi.
  */
 export function buildOverlayUrl(
   publicId: string,
@@ -86,7 +87,7 @@ export function buildOverlayUrl(
     : `Arvode: ${job.salary} kr`;
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
-  // Trasformazioni per nitidezza estrema (PNG + DPR 2.0 + Q_100)
+  // Trasformazioni HD con densità pixel raddoppiata e formato PNG
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
     `e_brightness:${brightness}`,
@@ -108,6 +109,5 @@ export function buildHDDownloadUrl(
   style: ImageStyle = 'cinematic',
   custom?: CustomImageSettings
 ): string {
-  // Usiamo la stessa logica di buildOverlayUrl essendo già al massimo della qualità
   return buildOverlayUrl(publicId, job, style, custom);
 }

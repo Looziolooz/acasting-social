@@ -3,10 +3,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  X, Check, Loader2, Download, Copy, MessageSquare,
+  X, Check, Loader2, Download, Copy,
   Sliders, CheckCircle2, Facebook, Instagram, Linkedin,
-  AlertCircle, Send, Eye, Type, Palette, ImageIcon,
-  ChevronDown, ChevronUp, Clipboard, ExternalLink
+  AlertCircle, Eye, Palette, ImageIcon,
+  Clipboard, ExternalLink
 } from 'lucide-react';
 import type { AnnotatedJob, ImageStyle, Platform, PublishResult, CustomImageSettings } from '@/lib/types';
 import {
@@ -32,7 +32,7 @@ const PlatformIcon = ({ platform, size = 16 }: { platform: Platform; size?: numb
     case 'facebook': return <Facebook size={size} />;
     case 'instagram': return <Instagram size={size} />;
     case 'linkedin': return <Linkedin size={size} />;
-    case 'tiktok': return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.37a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.8z" /></svg>;
+    case 'tiktok': return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.37a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.8z" /></svg>;
   }
 };
 
@@ -220,7 +220,7 @@ export default function ImageReviewModal({
 
         <div className="flex flex-col md:flex-row overflow-hidden flex-1">
           <div className="md:w-[400px] lg:w-[440px] p-6 bg-black/40 flex flex-col gap-4 border-r border-white/5 overflow-y-auto">
-            {/* Sezione Anteprima Immagine Ottimizzata */}
+            {/* Anteprima HD con rendering browser standard */}
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-surface-0">
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -371,11 +371,6 @@ export default function ImageReviewModal({
 
               {step === 'preview' && rightTab === 'captions' && (
                 <div className="flex flex-col gap-5">
-                  <div>
-                    <h3 className="text-sm font-display font-bold text-white mb-1">Caption Preview</h3>
-                    <p className="text-white/40 text-xs">Preview the auto-generated captions for each platform.</p>
-                  </div>
-
                   {loadingCaptions ? (
                     <div className="flex justify-center py-12">
                       <Loader2 className="animate-spin" size={24} style={{ color: 'var(--accent)' }} />
@@ -412,14 +407,8 @@ export default function ImageReviewModal({
 
               {step === 'preview' && rightTab === 'export' && (
                 <div className="flex flex-col gap-5">
-                  <div>
-                    <h3 className="text-sm font-display font-bold text-white mb-1">Manual Export</h3>
-                    <p className="text-white/40 text-xs">Copy image and caption separately to publish on Telegram, WhatsApp, or any platform.</p>
-                  </div>
-
                   <div className="rounded-2xl overflow-hidden border border-white/10"
                     style={{ background: 'var(--surface-2)' }}>
-
                     <div className="relative">
                       {imageUrl ? (
                         <div className="relative aspect-video">
@@ -431,82 +420,23 @@ export default function ImageReviewModal({
                           <span className="text-white/20 text-xs uppercase">No image generated yet</span>
                         </div>
                       )}
-                      <div className="absolute bottom-3 right-3 flex gap-2">
-                        <button onClick={downloadImageHD} disabled={!imageUrl}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold backdrop-blur-xl transition-all disabled:opacity-30"
-                          style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}>
-                          <Download size={12} /> Save Image
-                        </button>
-                        <button onClick={copyImageUrl} disabled={!imageUrl}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold backdrop-blur-xl transition-all disabled:opacity-30"
-                          style={{ background: 'rgba(0,0,0,0.6)', color: copiedImageLink ? '#10b981' : 'white' }}>
-                          {copiedImageLink ? <><CheckCircle2 size={12} /> Copied</> : <><Copy size={12} /> Copy URL</>}
-                        </button>
-                      </div>
                     </div>
-
                     <div className="p-5 border-t border-white/5">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Universal Caption</span>
-                        <button onClick={() => copyToClipboard(buildManualCaption(), 'universal')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all hover:bg-white/5"
-                          style={{ color: copiedCaption === 'universal' ? '#10b981' : 'var(--accent-light)' }}>
-                          {copiedCaption === 'universal' ? <><CheckCircle2 size={12} /> Copied!</> : <><Clipboard size={12} /> Copy Caption</>}
-                        </button>
-                      </div>
                       <pre className="text-[12px] text-white/70 whitespace-pre-wrap leading-relaxed font-sans max-h-40 overflow-y-auto">
                         {buildManualCaption()}
                       </pre>
                     </div>
                   </div>
-
-                  <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold mt-2">Platform-specific captions</div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {loadingCaptions ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 className="animate-spin" size={20} style={{ color: 'var(--accent)' }} />
-                      </div>
-                    ) : (
-                      (Object.entries(PLATFORM_CONFIG) as [Platform, typeof PLATFORM_CONFIG[Platform]][]).map(([platform, config]) => (
-                        <div key={platform} className="flex items-center justify-between p-4 rounded-xl border border-white/5"
-                          style={{ background: 'var(--surface-2)' }}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                              style={{ background: `${config.color}25`, color: config.color }}>
-                              <PlatformIcon platform={platform} size={14} />
-                            </div>
-                            <div>
-                              <span className="text-sm font-bold text-white">{config.label}</span>
-                              <p className="text-[10px] text-white/30">{(captions[platform] || '').length} characters</p>
-                            </div>
-                          </div>
-                          <button onClick={() => copyToClipboard(captions[platform] || '', `export-${platform}`)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold uppercase transition-all border"
-                            style={{
-                              borderColor: copiedCaption === `export-${platform}` ? '#10b981' : 'rgba(255,255,255,0.1)',
-                              color: copiedCaption === `export-${platform}` ? '#10b981' : 'var(--accent-light)',
-                            }}>
-                            {copiedCaption === `export-${platform}` ? <><CheckCircle2 size={12} /> Done</> : <><Copy size={12} /> Copy</>}
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
                   <button onClick={downloadImageWithCaption} disabled={!imageUrl}
                     className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-white disabled:opacity-30"
                     style={{ background: 'var(--accent)' }}>
-                    <Download size={16} /> Download Image + Copy Caption
+                    <Download size={16} /> Download PNG + Copy Caption
                   </button>
                 </div>
               )}
 
               {step === 'platforms' && (
                 <div className="flex flex-col gap-6">
-                  <div>
-                    <h3 className="text-xl font-display font-bold text-white mb-1 uppercase">Publish Configuration</h3>
-                    <p className="text-white/40 text-sm">Select platforms for auto-publishing.</p>
-                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     {(Object.entries(PLATFORM_CONFIG) as [Platform, typeof PLATFORM_CONFIG[Platform]][]).map(([p, config]) => {
                       const selected = selectedPlatforms.includes(p);
@@ -521,7 +451,6 @@ export default function ImageReviewModal({
                           </div>
                           <div className="text-left">
                             <div className="font-bold text-white text-sm">{config.label}</div>
-                            <div className="text-[10px] text-white/30 uppercase">{selected ? 'Ready' : 'Click to add'}</div>
                           </div>
                         </button>
                       );
@@ -544,7 +473,6 @@ export default function ImageReviewModal({
                 <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
                   <Loader2 className="animate-spin" size={56} style={{ color: 'var(--accent)' }} />
                   <h3 className="text-xl font-bold text-white uppercase tracking-tighter">Publishing...</h3>
-                  <p className="text-white/40 max-w-xs text-sm">Sending to your connected platforms.</p>
                 </div>
               )}
 
@@ -555,25 +483,6 @@ export default function ImageReviewModal({
                   </div>
                   <div className="text-center">
                     <h3 className="text-2xl font-display font-bold text-white mb-1 uppercase">Published!</h3>
-                    <p className="text-white/40 text-sm">Your ad is now live.</p>
-                  </div>
-                  <div className="space-y-2">
-                    {publishResults.map((r) => (
-                      <div key={r.platform} className="flex items-center justify-between p-4 rounded-2xl border border-white/5"
-                        style={{ background: 'var(--surface-2)' }}>
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg" style={{ background: 'var(--surface-3)' }}>
-                            <PlatformIcon platform={r.platform} />
-                          </div>
-                          <span className="text-sm font-bold text-white">{PLATFORM_CONFIG[r.platform].label}</span>
-                        </div>
-                        {r.success ? (
-                          <span className="text-emerald-500 text-[10px] font-black uppercase flex items-center gap-1"><Check size={13} /> Live</span>
-                        ) : (
-                          <span className="text-red-500 text-[10px] font-black uppercase flex items-center gap-1"><AlertCircle size={13} /> Failed</span>
-                        )}
-                      </div>
-                    ))}
                   </div>
                   <button onClick={onClose}
                     className="w-full py-4 rounded-2xl font-black uppercase text-white transition-all hover:opacity-80"
