@@ -27,11 +27,12 @@ export async function POST(req: NextRequest) {
     const safeSlugOrId = slugOrId || String(jobId);
     const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : null;
 
+    // Preparazione dati per i generatori di URL Cloudinary
     const jobData = {
       id: String(jobId),
       title: title || '',
       description: body.description || '',
-      salary: salary != null ? String(salary) : null,
+      salary: salary != null ? String(salary) : null, // Conversione esplicita in stringa
       city: city || null,
       expiryDate: safeExpiryDate,
       slugOrId: safeSlugOrId,
@@ -44,11 +45,13 @@ export async function POST(req: NextRequest) {
     const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle, parsedCustom);
     const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData, style as ImageStyle, parsedCustom);
 
+    // Salvataggio o aggiornamento nel Database con Prisma
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
         jobId: String(jobId),
         title: title || 'Untitled',
+        // Risolve l'errore PrismaClientValidationError: converte Int in String
         salary: salary != null ? String(salary) : null,
         city: city || null,
         expiryDate: safeExpiryDate,
@@ -62,6 +65,8 @@ export async function POST(req: NextRequest) {
         generatedImage: generatedImageUrl,
         style: style || 'cinematic',
         status: 'generated',
+        // Assicura che anche l'aggiornamento riceva una stringa
+        salary: salary != null ? String(salary) : null,
       },
     });
 
