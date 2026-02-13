@@ -1,3 +1,4 @@
+// components/ImageReviewModal.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,7 +8,6 @@ import {
   AlertCircle, Send, Eye, Type, Palette, ImageIcon,
   ChevronDown, ChevronUp, Clipboard, ExternalLink
 } from 'lucide-react';
-import Image from 'next/image';
 import type { AnnotatedJob, ImageStyle, Platform, PublishResult, CustomImageSettings } from '@/lib/types';
 import {
   STYLE_LABELS, PLATFORM_CONFIG, AVAILABLE_FONTS,
@@ -36,7 +36,6 @@ const PlatformIcon = ({ platform, size = 16 }: { platform: Platform; size?: numb
   }
 };
 
-/* ─── Color picker inline ─── */
 function ColorPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div>
@@ -52,7 +51,6 @@ function ColorPicker({ value, onChange, label }: { value: string; onChange: (v: 
   );
 }
 
-/* ─── Font selector ─── */
 function FontSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div>
@@ -68,7 +66,6 @@ function FontSelect({ value, onChange, label }: { value: string; onChange: (v: s
   );
 }
 
-/* ─── Slider control ─── */
 function SliderControl({ label, value, min, max, unit, onChange }: {
   label: string; value: number; min: number; max: number; unit?: string;
   onChange: (v: number) => void;
@@ -86,9 +83,6 @@ function SliderControl({ label, value, min, max, unit, onChange }: {
   );
 }
 
-/* ═══════════════════════════════════════════════ */
-/* ═══ MAIN COMPONENT                         ═══ */
-/* ═══════════════════════════════════════════════ */
 export default function ImageReviewModal({
   job, imageUrl, currentStyle, generating,
   onRegenerate, onPublished, onClose
@@ -100,12 +94,8 @@ export default function ImageReviewModal({
   const [publishing, setPublishing] = useState(false);
   const [copiedCaption, setCopiedCaption] = useState<string | null>(null);
   const [copiedImageLink, setCopiedImageLink] = useState(false);
-
-  // Captions state
   const [captions, setCaptions] = useState<Record<string, string>>({});
   const [loadingCaptions, setLoadingCaptions] = useState(false);
-
-  // Custom editor state
   const [customSet, setCustomSet] = useState<CustomImageSettings>({ ...DEFAULT_CUSTOM_SETTINGS });
 
   useEffect(() => {
@@ -113,7 +103,6 @@ export default function ImageReviewModal({
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  // Fetch captions when captions tab is opened or job changes
   const fetchCaptions = useCallback(async () => {
     setLoadingCaptions(true);
     try {
@@ -145,7 +134,6 @@ export default function ImageReviewModal({
     }
   }, [rightTab, fetchCaptions, captions]);
 
-  /* ─── Actions ─── */
   const downloadImageHD = async () => {
     if (!imageUrl) return;
     try {
@@ -162,9 +150,7 @@ export default function ImageReviewModal({
 
   const downloadImageWithCaption = async () => {
     if (!imageUrl) return;
-    // Download image
     await downloadImageHD();
-    // Also copy caption to clipboard
     const caption = buildManualCaption();
     await navigator.clipboard.writeText(caption);
     setCopiedCaption('all');
@@ -208,16 +194,12 @@ export default function ImageReviewModal({
     setCustomSet((prev) => ({ ...prev, ...partial }));
   };
 
-  /* ═══════════════════════════════════════════════ */
-  /* ═══ RENDER                                 ═══ */
-  /* ═══════════════════════════════════════════════ */
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="relative w-full max-w-7xl rounded-[32px] overflow-hidden border border-white/10 flex flex-col max-h-[95vh] shadow-2xl"
         style={{ background: 'var(--surface-1)', animation: 'slideUp 0.3s ease both' }}>
 
-        {/* ─── Header ─── */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-display font-bold text-white truncate">{job.title}</h2>
@@ -236,21 +218,22 @@ export default function ImageReviewModal({
           </div>
         </div>
 
-        {/* ─── Body ─── */}
         <div className="flex flex-col md:flex-row overflow-hidden flex-1">
-
-          {/* ═══ LEFT: Image Preview ═══ */}
           <div className="md:w-[400px] lg:w-[440px] p-6 bg-black/40 flex flex-col gap-4 border-r border-white/5 overflow-y-auto">
-            {/* Image */}
-            <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5"
-              style={{ background: 'var(--surface-0)' }}>
+            {/* Sezione Anteprima Immagine Ottimizzata */}
+            <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-surface-0">
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <Loader2 className="animate-spin" size={32} style={{ color: 'var(--accent)' }} />
                   <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">HD Rendering...</span>
                 </div>
               ) : imageUrl ? (
-                <Image src={imageUrl} alt="HD Preview" fill className="object-cover" unoptimized />
+                <img 
+                  src={imageUrl} 
+                  alt="HD Preview" 
+                  className="w-full h-full object-cover" 
+                  style={{ imageRendering: 'auto' }}
+                />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/20 text-sm font-display uppercase tracking-widest">
                   Select a style to preview
@@ -258,7 +241,6 @@ export default function ImageReviewModal({
               )}
             </div>
 
-            {/* Action buttons */}
             <div className="grid grid-cols-2 gap-2">
               <button onClick={downloadImageHD} disabled={!imageUrl || generating}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30"
@@ -278,10 +260,7 @@ export default function ImageReviewModal({
             </button>
           </div>
 
-          {/* ═══ RIGHT: Tabs (Style / Captions / Export) ═══ */}
           <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--surface-1)' }}>
-
-            {/* Tab navigation */}
             {step === 'preview' && (
               <div className="flex border-b border-white/5 px-6">
                 {([
@@ -301,11 +280,8 @@ export default function ImageReviewModal({
             )}
 
             <div className="flex-1 overflow-y-auto p-6">
-
-              {/* ─── STEP: PREVIEW ─── */}
               {step === 'preview' && rightTab === 'style' && (
                 <div className="flex flex-col gap-6">
-                  {/* Style presets */}
                   <section>
                     <h3 className="text-[10px] font-bold text-white/30 uppercase mb-3 tracking-widest border-l-2 pl-3"
                       style={{ borderColor: 'var(--accent)' }}>Preset Styles</h3>
@@ -331,7 +307,6 @@ export default function ImageReviewModal({
                     </div>
                   </section>
 
-                  {/* Custom Studio Editor - always visible when custom is selected */}
                   {currentStyle === 'custom' && (
                     <section className="rounded-2xl border border-accent/20 overflow-hidden"
                       style={{ background: 'rgba(124,58,237,0.04)' }}>
@@ -342,7 +317,6 @@ export default function ImageReviewModal({
                       </div>
 
                       <div className="p-5 space-y-5">
-                        {/* Title text override */}
                         <div>
                           <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">Title Override</div>
                           <input type="text"
@@ -353,7 +327,6 @@ export default function ImageReviewModal({
                             style={{ background: 'var(--surface-3)' }} />
                         </div>
 
-                        {/* Font selectors */}
                         <div className="grid grid-cols-2 gap-4">
                           <FontSelect label="Title Font" value={customSet.titleFont || 'Arial'}
                             onChange={(v) => updateCustom({ titleFont: v })} />
@@ -361,7 +334,6 @@ export default function ImageReviewModal({
                             onChange={(v) => updateCustom({ subtitleFont: v })} />
                         </div>
 
-                        {/* Color pickers */}
                         <ColorPicker label="Title Color" value={customSet.titleColor || 'white'}
                           onChange={(v) => updateCustom({ titleColor: v })} />
                         <ColorPicker label="Body Text Color" value={customSet.subtitleColor || 'white'}
@@ -369,7 +341,6 @@ export default function ImageReviewModal({
                         <ColorPicker label="CTA / Accent Color" value={customSet.accentColor || '7C3AED'}
                           onChange={(v) => updateCustom({ accentColor: v, ctaColor: v })} />
 
-                        {/* Sliders */}
                         <SliderControl label="Title Position (Y)" value={customSet.titleY ?? -250}
                           min={-500} max={0} onChange={(v) => updateCustom({ titleY: v })} />
                         <SliderControl label="Title Size" value={customSet.titleSize ?? 54}
@@ -379,7 +350,6 @@ export default function ImageReviewModal({
                         <SliderControl label="Brightness" value={customSet.brightness ?? -75}
                           min={-100} max={0} unit="" onChange={(v) => updateCustom({ brightness: v })} />
 
-                        {/* CTA Text */}
                         <div>
                           <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">CTA Text</div>
                           <input type="text" value={customSet.ctaText || 'ACASTING.SE'}
@@ -388,7 +358,6 @@ export default function ImageReviewModal({
                             style={{ background: 'var(--surface-3)' }} />
                         </div>
 
-                        {/* Apply button */}
                         <button onClick={() => onRegenerate('custom', customSet)}
                           className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] text-white"
                           style={{ background: 'var(--accent)' }}>
@@ -400,7 +369,6 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* ─── CAPTIONS TAB ─── */}
               {step === 'preview' && rightTab === 'captions' && (
                 <div className="flex flex-col gap-5">
                   <div>
@@ -442,7 +410,6 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* ─── MANUAL EXPORT TAB (Telegram-style) ─── */}
               {step === 'preview' && rightTab === 'export' && (
                 <div className="flex flex-col gap-5">
                   <div>
@@ -450,15 +417,13 @@ export default function ImageReviewModal({
                     <p className="text-white/40 text-xs">Copy image and caption separately to publish on Telegram, WhatsApp, or any platform.</p>
                   </div>
 
-                  {/* Telegram-style preview card */}
                   <div className="rounded-2xl overflow-hidden border border-white/10"
                     style={{ background: 'var(--surface-2)' }}>
 
-                    {/* Image section */}
                     <div className="relative">
                       {imageUrl ? (
                         <div className="relative aspect-video">
-                          <Image src={imageUrl} alt="Preview" fill className="object-cover" unoptimized />
+                          <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
                           <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(18,18,31,0.8) 0%, transparent 40%)' }} />
                         </div>
                       ) : (
@@ -480,7 +445,6 @@ export default function ImageReviewModal({
                       </div>
                     </div>
 
-                    {/* Caption section */}
                     <div className="p-5 border-t border-white/5">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Universal Caption</span>
@@ -496,7 +460,6 @@ export default function ImageReviewModal({
                     </div>
                   </div>
 
-                  {/* Per-platform export */}
                   <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold mt-2">Platform-specific captions</div>
                   <div className="grid grid-cols-1 gap-3">
                     {loadingCaptions ? (
@@ -530,7 +493,6 @@ export default function ImageReviewModal({
                     )}
                   </div>
 
-                  {/* Quick action: download everything */}
                   <button onClick={downloadImageWithCaption} disabled={!imageUrl}
                     className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-white disabled:opacity-30"
                     style={{ background: 'var(--accent)' }}>
@@ -539,7 +501,6 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* ─── STEP: PLATFORMS ─── */}
               {step === 'platforms' && (
                 <div className="flex flex-col gap-6">
                   <div>
@@ -579,7 +540,6 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* ─── STEP: PUBLISHING ─── */}
               {step === 'publishing' && (
                 <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
                   <Loader2 className="animate-spin" size={56} style={{ color: 'var(--accent)' }} />
@@ -588,7 +548,6 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* ─── STEP: DONE ─── */}
               {step === 'done' && (
                 <div className="flex flex-col gap-6">
                   <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-500/30">

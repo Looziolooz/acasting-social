@@ -38,26 +38,11 @@ export async function generatePlaceholderAndUpload(jobTitle: string): Promise<st
   });
 }
 
-// Stessa funzione enc del workflow n8n
 const enc = (text: string) =>
   encodeURIComponent(text || '')
     .replace(/,/g, '%2C')
     .replace(/\//g, '%2F');
 
-/**
- * Font per Cloudinary text overlay: spazi diventano underscore
- * Es: "Playfair Display" → "Playfair Display" (Cloudinary li gestisce con underscore nel path)
- */
-function cfFont(fontName?: string): string {
-  if (!fontName) return 'Arial';
-  // Cloudinary text overlay usa spazi normali encodati come %20 NON funziona
-  // Deve usare il nome esatto del font senza spazi o con underscore
-  return fontName.replace(/\s+/g, '%20');
-}
-
-/**
- * Colore per Cloudinary: white, black, o rgb:HEXCODE
- */
 function cfColor(color?: string): string {
   if (!color || color === 'white') return 'white';
   if (color === 'black') return 'black';
@@ -67,8 +52,7 @@ function cfColor(color?: string): string {
 }
 
 /**
- * Costruisce l'URL Cloudinary con overlay — basato sul workflow n8n funzionante.
- * Il pattern base è IDENTICO al workflow, con supporto custom aggiunto sopra.
+ * Genera URL HD con dpr_2.0 e q_100 per massima nitidezza testi
  */
 export function buildOverlayUrl(
   publicId: string,
@@ -78,9 +62,8 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  // ── Resolve values (custom overrides > style defaults > base) ──
   const titleText = custom?.titleText || job.title || 'Casting';
-  const titleSize = custom?.titleSize ?? 46;
+  const titleSize = custom?.titleSize ?? 54;
   const titleColor = cfColor(custom?.titleColor);
   const titleY = custom?.titleY ?? -250;
   const titleFont = custom?.titleFont ?? 'Arial';
@@ -89,59 +72,7 @@ export function buildOverlayUrl(
   const bodyColor = cfColor(custom?.subtitleColor);
   const bodyFont = custom?.subtitleFont ?? 'Arial';
 
-  const ctaText = custom?.ctaText ?? 'ACASTING';
-  const accentColor = cfColor(custom?.accentColor ?? '7C3AED');
-
-  const brightness = custom?.brightness ?? (
-    style === 'noir' ? -90 :
-    style === 'purple' ? -60 :
-    style === 'cinematic' ? -85 : -75
-  );
-
-  // Prepara testi come nel workflow
-  const salaryText = !job.salary || job.salary === 'Ej angivet'
-    ? 'Arvode: Ej angivet'
-    : `Arvode: ${job.salary} kr`;
-  const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
-
-  // ── Build transforms — stessa struttura del workflow n8n ──
-  const transforms = [
-    'w_1080,h_1920,c_fill,g_center,q_auto',
-    `e_brightness:${brightness}`,
-    `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
-    'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
-    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
-    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
-    `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
-    `l_text:${titleFont}_46_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
-    'f_jpg'
-  ].join('/');
-
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
-}
-
-/**
- * HD Download URL — stessa logica ma qualità massima per il download
- */
-export function buildHDDownloadUrl(
-  publicId: string,
-  job: AcastingJob,
-  style: ImageStyle = 'cinematic',
-  custom?: CustomImageSettings
-): string {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-
-  const titleText = custom?.titleText || job.title || 'Casting';
-  const titleSize = custom?.titleSize ?? 46;
-  const titleColor = cfColor(custom?.titleColor);
-  const titleY = custom?.titleY ?? -250;
-  const titleFont = custom?.titleFont ?? 'Arial';
-
-  const bodySize = custom?.subtitleSize ?? 46;
-  const bodyColor = cfColor(custom?.subtitleColor);
-  const bodyFont = custom?.subtitleFont ?? 'Arial';
-
-  const ctaText = custom?.ctaText ?? 'ACASTING';
+  const ctaText = custom?.ctaText ?? 'ACASTING.SE';
   const accentColor = cfColor(custom?.accentColor ?? '7C3AED');
 
   const brightness = custom?.brightness ?? (
@@ -155,9 +86,9 @@ export function buildHDDownloadUrl(
     : `Arvode: ${job.salary} kr`;
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
-  // Stessa struttura ma q_100 e png per massima qualità download
+  // Trasformazioni per nitidezza estrema (PNG + DPR 2.0 + Q_100)
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,q_100',
+    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
@@ -169,4 +100,14 @@ export function buildHDDownloadUrl(
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.png`;
+}
+
+export function buildHDDownloadUrl(
+  publicId: string,
+  job: AcastingJob,
+  style: ImageStyle = 'cinematic',
+  custom?: CustomImageSettings
+): string {
+  // Usiamo la stessa logica di buildOverlayUrl essendo già al massimo della qualità
+  return buildOverlayUrl(publicId, job, style, custom);
 }
