@@ -10,31 +10,26 @@ cloudinary.config({
 
 /**
  * Carica un'immagine su Cloudinary scaricandola prima come buffer.
- * Fondamentale per il deploy su Vercel per evitare blocchi anti-bot.
+ * Fondamentale su Vercel per bypassare i blocchi anti-bot di acasting.se.
  */
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
   try {
-    // Scarichiamo l'immagine con un User-Agent browser
     const response = await fetch(imageUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Errore download immagine originale: ${response.statusText}`);
+      throw new Error(`Errore download immagine: ${response.statusText}`);
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Caricamento tramite stream
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'acasting',
-          resource_type: 'image',
-        },
+        { folder: 'acasting', resource_type: 'image' },
         (error, result) => {
           if (error) return reject(error);
           resolve(result!.public_id);
@@ -43,7 +38,7 @@ export async function uploadImageToCloudinary(imageUrl: string): Promise<string>
       uploadStream.end(buffer);
     });
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
+    console.error("Cloudinary Flow Error:", error);
     throw error;
   }
 }
@@ -51,10 +46,12 @@ export async function uploadImageToCloudinary(imageUrl: string): Promise<string>
 function enc(text: string): string {
   return encodeURIComponent(text || '')
     .replace(/,/g, '%2C')
-    .replace(/\//g, '%2F')
-    .replace(/:/g, '%3A');
+    .replace(/\//g, '%2F');
 }
 
+/**
+ * Builds a Cloudinary overlay URL basato sul tuo workflow nativo.
+ */
 export function buildOverlayUrl(
   publicId: string,
   job: AcastingJob,
@@ -62,41 +59,41 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
 
-  const styleConfig = {
-    dark: { brightness: -80, titleColor: 'white', subColor: 'white', accentColor: '7C3AED' },
-    purple: { brightness: -60, titleColor: 'white', subColor: 'E5D5FF', accentColor: 'A78BFA' },
-    noir: { brightness: -95, titleColor: 'white', subColor: 'CCCCCC', accentColor: 'FFFFFF' },
-    warm: { brightness: -65, titleColor: 'FFEDD8', subColor: 'FFC599', accentColor: 'FF6B35' },
-  }[style];
+  // Mappatura luminosità basata sullo stile, mantenendo il look del workflow
+  const brightness = {
+    dark: -85,
+    purple: -75,
+    noir: -95,
+    warm: -70
+  }[style] || -85;
 
   const title = job.title || 'Casting';
-  const salary = job.salary ? `Arvode: ${job.salary} kr` : 'Arvode: Ej angivet';
+  const salaryText = !job.salary || job.salary === 'Ej angivet' 
+    ? 'Arvode: Ej angivet' 
+    : `Arvode: ${job.salary} kr`;
+  
   const expiry = `Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`;
-  const city = job.city || 'Sverige';
 
+  // Trasformazioni identiche al tuo script originale
   const transforms = [
-    'w_1080,h_1920,c_fill,g_face:auto,dpr_2.0,q_90',
-    `e_brightness:${styleConfig.brightness}`,
-    `l_text:Arial_4_bold:.,g_north,y_120,co_${styleConfig.accentColor},w_200`,
-    `l_text:Arial_28_bold:${enc((job.category || 'CASTING').toUpperCase())},g_north,y_80,co_${styleConfig.accentColor}`,
-    `l_text:Arial_58_bold_center:${enc(title)},g_center,y_-280,w_920,c_fit,co_${styleConfig.titleColor}`,
-    `l_text:Arial_36_bold:─────────────,g_center,y_-160,co_${styleConfig.accentColor}`,
-    `l_text:Arial_38_bold_center:${enc('📍 ' + city)},g_center,y_-90,w_920,c_fit,co_${styleConfig.subColor}`,
-    `l_text:Arial_46_bold_center:${enc(salary)},g_center,y_10,w_920,c_fit,co_${styleConfig.titleColor}`,
-    `l_text:Arial_38_bold_center:${enc(expiry)},g_center,y_100,w_920,c_fit,co_${styleConfig.subColor}`,
-    `l_text:Arial_36_bold:─────────────,g_center,y_260,co_${styleConfig.accentColor}`,
-    `l_text:Arial_42_bold_center:Ansök nu på,g_center,y_340,w_920,c_fit,co_${styleConfig.subColor}`,
-    `l_text:Arial_72_bold_center:ACASTING.SE,g_center,y_430,w_920,c_fit,co_${styleConfig.accentColor}`,
-    'f_jpg',
+    'w_1080,h_1920,c_fill,g_center,q_auto',
+    `e_brightness:${brightness}`,
+    `l_text:Arial_46_bold_center:${enc(title)},g_center,y_-250,w_900,c_fit,co_white`,
+    'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
+    `l_text:Arial_46_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_white`,
+    `l_text:Arial_46_bold_center:${enc(expiry)},g_center,y_140,w_900,c_fit,co_white`,
+    'l_text:Arial_46_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_white',
+    'l_text:Arial_46_bold_center:ACASTING,g_center,y_380,w_900,c_fit,co_rgb:7C3AED',
+    'f_jpg'
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
 }
 
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
-  const response = await fetch(`https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`);
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const url = `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`;
+  const response = await fetch(url);
+  const buffer = Buffer.from(await response.arrayBuffer());
 
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
