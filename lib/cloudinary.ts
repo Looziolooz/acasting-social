@@ -10,41 +10,44 @@ cloudinary.config({
 
 /**
  * Carica un'immagine su Cloudinary scaricandola prima come buffer.
- * Questo risolve i problemi di caricamento su Vercel bypassando i blocchi anti-bot.
+ * Fondamentale per il deploy su Vercel per evitare blocchi anti-bot.
  */
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
-  // 1. Scarichiamo l'immagine con un User-Agent browser per evitare blocchi
-  const response = await fetch(imageUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Impossibile scaricare l'immagine originale: ${response.statusText}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  // 2. Utilizziamo upload_stream per caricare il buffer direttamente su Cloudinary
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'acasting',
-        resource_type: 'image',
+  try {
+    // Scarichiamo l'immagine con un User-Agent browser
+    const response = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result!.public_id);
-      }
-    );
+    });
 
-    uploadStream.end(buffer);
-  });
+    if (!response.ok) {
+      throw new Error(`Errore download immagine originale: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Caricamento tramite stream
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'acasting',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result!.public_id);
+        }
+      );
+      uploadStream.end(buffer);
+    });
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw error;
+  }
 }
 
-/** Encodes text safely for Cloudinary URL transformations */
 function enc(text: string): string {
   return encodeURIComponent(text || '')
     .replace(/,/g, '%2C')
@@ -52,9 +55,6 @@ function enc(text: string): string {
     .replace(/:/g, '%3A');
 }
 
-/**
- * Builds a Cloudinary overlay URL with Swedish text for the target audience.
- */
 export function buildOverlayUrl(
   publicId: string,
   job: AcastingJob,
@@ -93,11 +93,19 @@ export function buildOverlayUrl(
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
 }
 
-/** Generate a placeholder image when no source image is available */
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
-  const result = await cloudinary.uploader.upload(
-    `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`,
-    { folder: 'acasting/placeholders' }
-  );
-  return result.public_id;
+  const response = await fetch(`https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`);
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: 'acasting/placeholders' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result!.public_id);
+      }
+    );
+    uploadStream.end(buffer);
+  });
 }
