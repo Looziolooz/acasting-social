@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       id: String(jobId),
       title: title || '',
       description: body.description || '',
-      salary: salary || null,
+      salary: salary != null ? String(salary) : null,
       city: city || null,
       expiryDate: safeExpiryDate,
       slugOrId: safeSlugOrId,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       create: {
         jobId: String(jobId),
         title: title || 'Untitled',
-        salary: salary || null,
+        salary: salary != null ? String(salary) : null,
         city: city || null,
         expiryDate: safeExpiryDate,
         slugOrId: safeSlugOrId,
