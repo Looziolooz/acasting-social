@@ -5,13 +5,9 @@ import { RefreshCw, Film, LayoutGrid, Clock, CheckCircle2, Layers } from 'lucide
 import JobCard from '@/components/JobCard';
 import ImageReviewModal from '@/components/ImageReviewModal';
 import HistoryPanel from '@/components/HistoryPanel';
-import type { AcastingJob, ImageStyle } from '@/lib/types';
+import type { AnnotatedJob, ImageStyle, CustomImageSettings } from '@/lib/types';
 
 type Tab = 'new' | 'history';
-
-interface AnnotatedJob extends AcastingJob {
-  processedStatus: string | null;
-}
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<AnnotatedJob[]>([]);
@@ -38,7 +34,7 @@ export default function Dashboard() {
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
-  const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'dark') => {
+  const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'dark', custom?: CustomImageSettings) => {
     setSelectedJob(job);
     setCurrentStyle(style);
     setGenerating(true);
@@ -48,9 +44,17 @@ export default function Dashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          jobId: job.id, title: job.title, salary: job.salary, city: job.city,
-          expiryDate: job.expiryDate, slugOrId: job.slugOrId, category: job.category,
-          description: job.description, originalImage: job.imageUrl, style,
+          jobId: job.id, 
+          title: job.title, 
+          salary: job.salary, 
+          city: job.city,
+          expiryDate: job.expiryDate, 
+          slugOrId: job.slugOrId, 
+          category: job.category,
+          description: job.description, 
+          originalImage: job.imageUrl, 
+          style,
+          customSettings: custom
         }),
       });
       const data = await res.json();
@@ -72,18 +76,30 @@ export default function Dashboard() {
     setJobs((prev) => prev.map((j) => String(j.id) === jobId ? { ...j, processedStatus: 'skipped' } : j));
   };
 
+  const handleRestore = async (jobId: string) => {
+    try {
+      const res = await fetch(`/api/history?jobId=${jobId}`, { method: 'PATCH' });
+      if (res.ok) {
+        setJobs((prev) => 
+          prev.map((j) => String(j.id) === jobId ? { ...j, processedStatus: 'pending' } : j)
+        );
+      }
+    } catch (e) {
+      console.error("Error restoring job:", e);
+    }
+  };
+
   const filteredJobs = jobs.filter((j) => {
-    if (filter === 'new') return !j.processedStatus || j.processedStatus === 'generated';
+    if (filter === 'new') return !j.processedStatus || j.processedStatus === 'pending' || j.processedStatus === 'generated';
     if (filter === 'done') return j.processedStatus === 'published' || j.processedStatus === 'skipped';
     return true;
   });
 
-  const newCount = jobs.filter((j) => !j.processedStatus || j.processedStatus === 'generated').length;
+  const newCount = jobs.filter((j) => !j.processedStatus || j.processedStatus === 'pending' || j.processedStatus === 'generated').length;
   const doneCount = jobs.filter((j) => j.processedStatus === 'published').length;
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--surface-0)' }}>
-      {/* Header */}
       <header className="border-b border-white/5 sticky top-0 z-40 backdrop-blur-xl" style={{ background: 'rgba(8,8,16,0.85)' }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -117,14 +133,13 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {tab === 'new' ? (
           <>
-            {/* Stats bar */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-6">
                 <div className="text-white/40 text-sm font-mono flex items-center gap-2">
                   <Layers size={14} /><span>{jobs.length} total listings</span>
                 </div>
                 <div className="flex items-center gap-2" style={{ color: 'var(--accent-light)' }}>
-                  <Clock size={14} /><span className="text-sm font-mono">{newCount} new</span>
+                  <Clock size={14} /><span className="text-sm font-mono">{newCount} items</span>
                 </div>
                 <div className="text-emerald-400 flex items-center gap-2">
                   <CheckCircle2 size={14} /><span className="text-sm font-mono">{doneCount} published</span>
@@ -160,8 +175,9 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredJobs.map((job, i) => (
                   <JobCard key={job.id} job={job} index={i}
-                    onGenerate={(style) => handleGenerate(job, style)}
-                    onSkip={() => handleSkip(String(job.id))} />
+                    onGenerate={(style: ImageStyle, custom?: CustomImageSettings) => handleGenerate(job, style, custom)}
+                    onSkip={() => handleSkip(String(job.id))}
+                    onRestore={() => handleRestore(String(job.id))} />
                 ))}
               </div>
             )}
@@ -175,7 +191,7 @@ export default function Dashboard() {
         <ImageReviewModal
           job={selectedJob} imageUrl={generatedImage} currentStyle={currentStyle}
           generating={generating}
-          onRegenerate={(style) => handleGenerate(selectedJob, style)}
+          onRegenerate={(style, custom) => handleGenerate(selectedJob, style, custom)}
           onPublished={(platforms) => handlePublished(String(selectedJob.id), platforms)}
           onClose={() => { setSelectedJob(null); setGeneratedImage(null); }} />
       )}
