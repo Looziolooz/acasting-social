@@ -8,6 +8,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { jobId, title, salary, city, expiryDate, slugOrId, originalImage, style = 'cinematic', customSettings } = body;
 
+    // Validazione base
+    if (!jobId || !title) {
+      return NextResponse.json({ error: 'jobId and title are required' }, { status: 400 });
+    }
+
     let publicId: string;
     try {
       if (originalImage?.startsWith('http')) {
@@ -19,14 +24,17 @@ export async function POST(req: NextRequest) {
       publicId = await generatePlaceholderAndUpload(title);
     }
 
+    const safeSlugOrId = slugOrId || String(jobId);
+    const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : null;
+
     const jobData = {
       id: String(jobId),
       title: title || '',
       description: body.description || '',
       salary: salary || null,
       city: city || null,
-      expiryDate: expiryDate ? String(expiryDate).split('T')[0] : null,
-      slugOrId: slugOrId || '',
+      expiryDate: safeExpiryDate,
+      slugOrId: safeSlugOrId,
       category: body.category || null,
       imageUrl: originalImage || null,
       createdAt: new Date().toISOString(),
@@ -40,13 +48,21 @@ export async function POST(req: NextRequest) {
       where: { jobId: String(jobId) },
       create: {
         jobId: String(jobId),
-        title, salary, city,
-        expiryDate: expiryDate ? String(expiryDate).split('T')[0] : null,
-        slugOrId, originalImage,
+        title: title || 'Untitled',
+        salary: salary || null,
+        city: city || null,
+        expiryDate: safeExpiryDate,
+        slugOrId: safeSlugOrId,
+        originalImage: originalImage || null,
         generatedImage: generatedImageUrl,
-        style, status: 'generated',
+        style: style || 'cinematic',
+        status: 'generated',
       },
-      update: { generatedImage: generatedImageUrl, style, status: 'generated' },
+      update: {
+        generatedImage: generatedImageUrl,
+        style: style || 'cinematic',
+        status: 'generated',
+      },
     });
 
     return NextResponse.json({
