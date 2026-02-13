@@ -1,7 +1,7 @@
+// lib/cloudinary.ts
 import { v2 as cloudinary } from 'cloudinary';
 import type { AcastingJob, ImageStyle } from './types';
 
-// Configurazione Cloudinary con le nuove variabili d'ambiente
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -10,50 +10,44 @@ cloudinary.config({
 });
 
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
+  console.log(`[DEBUG] Tentativo upload immagine: ${imageUrl}`);
   try {
     const response = await fetch(imageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
+      headers: { 'User-Agent': 'Mozilla/5.0' },
     });
 
-    if (!response.ok) throw new Error(`Download fallito: ${response.status}`);
+    if (!response.ok) throw new Error(`Fetch fallito: ${response.status}`);
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(await response.arrayBuffer());
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: 'acasting', resource_type: 'image' },
+        { folder: 'acasting' },
         (error, result) => {
-          if (error) return reject(error);
+          if (error) {
+            console.error("[DEBUG] Errore Cloudinary Stream:", error);
+            return reject(error);
+          }
           resolve(result!.public_id);
         }
       );
       uploadStream.end(buffer);
     });
   } catch (error) {
-    console.error("Cloudinary Upload Error:", error);
+    console.error("[DEBUG] Errore uploadImageToCloudinary:", error);
     throw error;
   }
 }
 
-const enc = (text: string) => encodeURIComponent(text || '')
-  .replace(/,/g, '%2C')
-  .replace(/\//g, '%2F');
+const enc = (text: string) => encodeURIComponent(text || '').replace(/,/g, '%2C').replace(/\//g, '%2F');
 
-export function buildOverlayUrl(
-  publicId: string,
-  job: AcastingJob,
-  style: ImageStyle = 'dark'
-): string {
+export function buildOverlayUrl(publicId: string, job: AcastingJob, style: ImageStyle = 'dark'): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dylwdckvv';
-  
   const title = job.title || 'Casting';
   const salaryText = !job.salary || job.salary === 'Ej angivet' ? 'Arvode: Ej angivet' : `Arvode: ${job.salary} kr`;
   const expiry = `Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`;
 
-  // Workflow nativo HD con parametri ottimizzati
+  // LAYOUT HD (Workflow Telegram Fix)
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,q_auto',
     'e_brightness:-85',
@@ -70,17 +64,14 @@ export function buildOverlayUrl(
 }
 
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
+  // Fallback se l'immagine originale è protetta
   const url = `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent(jobTitle)}`;
   const response = await fetch(url);
   const buffer = Buffer.from(await response.arrayBuffer());
   return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'acasting/placeholders' },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result!.public_id);
-      }
-    );
-    uploadStream.end(buffer);
+    cloudinary.uploader.upload_stream({ folder: 'acasting/placeholders' }, (err, res) => {
+      if (err) return reject(err);
+      resolve(res!.public_id);
+    }).end(buffer);
   });
 }
