@@ -28,15 +28,29 @@ export interface ProcessedJob {
   publishedTo: string | null;
   publishedAt: Date | null;
   createdAt: Date;
+  // Campi aggiuntivi per la personalizzazione custom
+  customSettings?: CustomImageSettings | null;
 }
 
 export type JobStatus = 'pending' | 'generated' | 'approved' | 'published' | 'skipped';
-export type ImageStyle = 'dark' | 'purple' | 'noir' | 'warm';
+// 'warm' rimosso e sostituito con 'custom' come richiesto
+export type ImageStyle = 'dark' | 'purple' | 'noir' | 'custom'; 
 export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'tiktok';
+
+export interface CustomImageSettings {
+  titleFont?: string;
+  titleColor?: string;
+  titleSize?: number;
+  titleY?: number;
+  salaryColor?: string;
+  bgColor?: string;
+  brightness?: number;
+}
 
 export interface GenerateImageRequest {
   jobId: string;
   style?: ImageStyle;
+  customSettings?: CustomImageSettings;
 }
 
 export interface PublishRequest {
@@ -55,8 +69,8 @@ export interface PublishResult {
 export const STYLE_LABELS: Record<ImageStyle, { label: string; desc: string; brightness: number; color: string }> = {
   dark: {
     label: 'Cinematic',
-    desc: 'Classic dark overlay',
-    brightness: -80,
+    desc: 'Classic dark overlay (Workflow Fix)',
+    brightness: -85,
     color: 'white',
   },
   purple: {
@@ -67,15 +81,15 @@ export const STYLE_LABELS: Record<ImageStyle, { label: string; desc: string; bri
   },
   noir: {
     label: 'Noir',
-    desc: 'Maximum contrast',
+    desc: 'Maximum contrast B&W',
     brightness: -95,
     color: 'white',
   },
-  warm: {
-    label: 'Warm',
-    desc: 'Warm cinematic tone',
+  custom: {
+    label: 'Custom Edit',
+    desc: 'Personalizza font, posizioni e colori',
     brightness: -65,
-    color: 'FFEDD8',
+    color: 'white',
   },
 };
 
