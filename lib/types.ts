@@ -71,10 +71,10 @@ export const DEFAULT_CUSTOM_SETTINGS: CustomImageSettings = {
   bgOverlayOpacity: 75,
   brightness: -75,
   accentColor: '7C3AED',
-  outputQuality: 95,
+  outputQuality: 90,
   outputWidth: 1080,
   outputHeight: 1920,
-  outputFormat: 'png',
+  outputFormat: 'auto',
   enableProgressive: true,
   useLossyPNG: true,
 };
@@ -136,10 +136,9 @@ export const COLOR_PRESETS = [
   { value: '000000', label: 'Black', hex: '#000000' },
 ] as const;
 
-// 🆕 Quality Presets per UI
 export const QUALITY_PRESETS = [
-  { label: 'Max Quality', quality: 100, format: 'png' as const, width: 1080, height: 1920, desc: 'Lossless, ~1.5MB' },
-  { label: 'High (Recommended)', quality: 95, format: 'png' as const, width: 1080, height: 1920, desc: 'Near-lossless, ~900KB' },
-  { label: 'Balanced', quality: 85, format: 'auto' as const, width: 1080, height: 1920, desc: 'WebP/AVIF, ~400KB' },
-  { label: '4K Ultra', quality: 95, format: 'png' as const, width: 2160, height: 3840, desc: 'Ultra HD, ~3MB' },
+  { label: 'Ultra HD', quality: 100, format: 'png' as const, width: 1080, height: 1920, desc: 'Lossless PNG, ~1.5MB' },
+  { label: 'High Quality', quality: 90, format: 'auto' as const, width: 1080, height: 1920, desc: 'Best balance, ~600KB' },
+  { label: 'Retina 2x', quality: 85, format: 'auto' as const, width: 2160, height: 3840, desc: 'Double resolution, ~1.2MB' },
+  { label: 'Fast Web', quality: 80, format: 'auto' as const, width: 1080, height: 1920, desc: 'WebP optimized, ~400KB' },
 ] as const;

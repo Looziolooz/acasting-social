@@ -23,20 +23,25 @@ export async function POST(req: NextRequest) {
       customSettings 
     } = body;
 
+    console.log('🎬 Starting image generation:', { jobId, title, style });
+
     if (!jobId || !title) {
       return NextResponse.json({ error: 'jobId and title are required' }, { status: 400 });
     }
 
-    // 1. Caricamento immagine originale su Cloudinary
+    // 1. Caricamento immagine originale HD su Cloudinary
     let publicId: string;
     try {
       if (originalImage && originalImage.startsWith('http')) {
+        console.log(`📸 Original image URL: ${originalImage}`);
         publicId = await uploadImageToCloudinary(originalImage);
       } else {
+        console.log('⚠️ No original image, generating placeholder');
         publicId = await generatePlaceholderAndUpload(title);
       }
     } catch (e) {
-      console.error('Errore Cloudinary:', e);
+      console.error('❌ Cloudinary upload error:', e);
+      console.log('🔄 Falling back to placeholder');
       publicId = await generatePlaceholderAndUpload(title);
     }
 
@@ -55,9 +60,13 @@ export async function POST(req: NextRequest) {
       imageUrl: originalImage || null,
     };
 
-    // 3. Generazione URL ad alta qualità con customSettings
+    // 3. Generazione URL HD con overlay
     const generatedImageUrl = buildOverlayUrl(publicId, jobData as any, style as ImageStyle, customSettings);
     const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData as any, style as ImageStyle, customSettings);
+
+    console.log('✅ Generated URLs:');
+    console.log('   Preview:', generatedImageUrl.substring(0, 150) + '...');
+    console.log('   Download:', hdDownloadUrl.substring(0, 150) + '...');
 
     // 4. Salvataggio Database
     await db.processedJob.upsert({
@@ -83,13 +92,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log('💾 Saved to database');
+
     return NextResponse.json({
       success: true,
       imageUrl: generatedImageUrl,
       hdDownloadUrl,
+      publicId, // 🆕 Restituisci anche il publicId per debugging
     });
   } catch (error) {
-    console.error('Generate error:', error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    console.error('❌ Generate error:', error);
+    return NextResponse.json({ 
+      error: String(error),
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

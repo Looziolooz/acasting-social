@@ -9,32 +9,81 @@ cloudinary.config({
   secure: true,
 });
 
+/**
+ * 🎯 UPLOAD OTTIMIZZATO - PRESERVA QUALITÀ ORIGINALE
+ * Carica l'immagine su Cloudinary mantenendo la massima qualità
+ */
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
-  const response = await fetch(imageUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
-  const buffer = Buffer.from(await response.arrayBuffer());
+  try {
+    // Fetch con headers per bypassare restrizioni
+    const response = await fetch(imageUrl, { 
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      } 
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
+    }
+    
+    const buffer = Buffer.from(await response.arrayBuffer());
+    
+    console.log(`📥 Uploading image: ${imageUrl.substring(0, 100)}...`);
+    console.log(`📦 Buffer size: ${(buffer.length / 1024).toFixed(2)} KB`);
 
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'acasting' },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result!.public_id);
-      }
-    );
-    uploadStream.end(buffer);
-  });
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'acasting',
+          // 🔥 PARAMETRI CRITICI PER QUALITÀ HD
+          quality: 'auto:best',        // Usa la migliore qualità automatica
+          fetch_format: 'auto',        // Formato ottimale (mantiene originale se migliore)
+          flags: 'preserve_transparency', // Preserva trasparenza se presente
+          resource_type: 'image',
+          type: 'upload',
+          overwrite: false,
+          invalidate: true,
+          // ⚠️ NON ridimensionare in upload, lo faremo nelle trasformazioni
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary upload error:', error);
+            return reject(error);
+          }
+          console.log(`✅ Upload successful: ${result!.public_id}`);
+          console.log(`📊 Original: ${result!.width}x${result!.height}, ${(result!.bytes / 1024).toFixed(2)} KB`);
+          resolve(result!.public_id);
+        }
+      );
+      uploadStream.end(buffer);
+    });
+  } catch (error) {
+    console.error('❌ Upload failed:', error);
+    throw error;
+  }
 }
 
+/**
+ * Genera placeholder HD se l'immagine originale non è disponibile
+ */
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
   const url = `https://placehold.co/1080x1920/0D0D1A/7C3AED.png?text=${encodeURIComponent(jobTitle)}`;
   const response = await fetch(url);
   const buffer = Buffer.from(await response.arrayBuffer());
+  
   return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload_stream({ folder: 'acasting/placeholders' }, (err, res) => {
-      if (err) return reject(err);
-      resolve(res!.public_id);
-    }).end(buffer);
+    cloudinary.uploader.upload_stream(
+      { 
+        folder: 'acasting/placeholders',
+        quality: 100,
+        fetch_format: 'png'
+      }, 
+      (err, res) => {
+        if (err) return reject(err);
+        resolve(res!.public_id);
+      }
+    ).end(buffer);
   });
 }
 
@@ -51,8 +100,8 @@ function cfColor(color?: string): string {
 }
 
 /**
- * 🎯 FUNZIONE OTTIMIZZATA - MASSIMA QUALITÀ HD
- * Genera URL Cloudinary con trasformazioni ad alta definizione
+ * 🎯 BUILD URL OTTIMIZZATO - OVERLAY HD SU IMMAGINE ORIGINALE
+ * Applica overlay mantenendo la qualità dell'immagine originale
  */
 export function buildOverlayUrl(
   publicId: string,
@@ -62,13 +111,12 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  // 🆕 Parametri qualità personalizzabili
+  // Parametri qualità personalizzabili
   const width = custom?.outputWidth ?? 1080;
   const height = custom?.outputHeight ?? 1920;
-  const quality = custom?.outputQuality ?? 95;
-  const format = custom?.outputFormat ?? 'png';
+  const quality = custom?.outputQuality ?? 90;  // Ridotto a 90 per bilanciare qualità/dimensioni
+  const format = custom?.outputFormat ?? 'auto'; // auto = WebP/AVIF dove supportato
   const progressive = custom?.enableProgressive !== false;
-  const lossyPNG = custom?.useLossyPNG !== false;
 
   // Parametri testo e stile
   const titleText = custom?.titleText || job.title || 'Casting';
@@ -94,26 +142,28 @@ export function buildOverlayUrl(
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
   /**
-   * 🔥 CONFIGURAZIONE HD OTTIMIZZATA
-   * - Risoluzione: personalizzabile (default 1080x1920 Full HD)
-   * - Qualità: 95 (quasi lossless, perfetto per testi)
-   * - Formato: PNG per testi nitidi
-   * - Progressive: caricamento ottimizzato
-   * - Lossy PNG: compressione intelligente
+   * 🔥 STRATEGIA OTTIMALE:
+   * 1. Usa immagine ORIGINALE ad alta risoluzione (no downscale in upload)
+   * 2. Ridimensiona a 1080x1920 SOLO nella trasformazione finale
+   * 3. Applica q_auto:best per qualità intelligente
+   * 4. Usa f_auto per formato ottimale (WebP/AVIF)
+   * 5. Aggiungi dpr_2.0 per Retina displays
    */
-  const baseTransforms = [
-    `w_${width},h_${height},c_fill,g_center`,
-    `q_${quality}`,
-    `f_${format}`,
-  ];
-
-  // Aggiungi flag opzionali
-  if (progressive) baseTransforms.push('fl_progressive:steep');
-  if (format === 'png' && lossyPNG) baseTransforms.push('fl_lossy');
-
   const transforms = [
-    ...baseTransforms,
+    // 🎯 FASE 1: Ridimensionamento dall'originale HD
+    `w_${width},h_${height},c_fill,g_auto,dpr_2.0`,
+    
+    // 🎯 FASE 2: Qualità e formato
+    'q_auto:best',           // Qualità automatica migliore
+    `f_${format}`,           // Formato ottimale (WebP/AVIF su browser supportati)
+    ...(progressive ? ['fl_progressive:steep'] : []),
+    'fl_lossy',              // Compressione intelligente
+    
+    // 🎯 FASE 3: Effetti immagine
     `e_brightness:${brightness}`,
+    'e_sharpen:80',          // Sharpening per testi più nitidi
+    
+    // 🎯 FASE 4: Text Overlays
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
@@ -126,7 +176,8 @@ export function buildOverlayUrl(
 }
 
 /**
- * URL per download HD (identica alla preview per consistenza qualità)
+ * 🎯 URL DOWNLOAD HD - VERSIONE MASSIMA QUALITÀ
+ * Per download usa PNG lossless
  */
 export function buildHDDownloadUrl(
   publicId: string,
@@ -134,5 +185,14 @@ export function buildHDDownloadUrl(
   style: ImageStyle = 'cinematic',
   custom?: CustomImageSettings
 ): string {
-  return buildOverlayUrl(publicId, job, style, custom);
+  // Per il download, forza PNG a qualità 100
+  const downloadSettings: CustomImageSettings = {
+    ...custom,
+    outputQuality: 100,
+    outputFormat: 'png',
+    enableProgressive: true,
+    useLossyPNG: false, // Disabilita lossy per download
+  };
+  
+  return buildOverlayUrl(publicId, job, style, downloadSettings);
 }
