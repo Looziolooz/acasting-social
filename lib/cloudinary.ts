@@ -8,12 +8,40 @@ cloudinary.config({
   secure: true,
 });
 
+/**
+ * Carica un'immagine su Cloudinary scaricandola prima come buffer.
+ * Questo risolve i problemi di caricamento su Vercel bypassando i blocchi anti-bot.
+ */
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
-  const result = await cloudinary.uploader.upload(imageUrl, {
-    folder: 'acasting',
-    resource_type: 'image',
+  // 1. Scarichiamo l'immagine con un User-Agent browser per evitare blocchi
+  const response = await fetch(imageUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
   });
-  return result.public_id;
+
+  if (!response.ok) {
+    throw new Error(`Impossibile scaricare l'immagine originale: ${response.statusText}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  // 2. Utilizziamo upload_stream per caricare il buffer direttamente su Cloudinary
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'acasting',
+        resource_type: 'image',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result!.public_id);
+      }
+    );
+
+    uploadStream.end(buffer);
+  });
 }
 
 /** Encodes text safely for Cloudinary URL transformations */
@@ -26,7 +54,6 @@ function enc(text: string): string {
 
 /**
  * Builds a Cloudinary overlay URL with Swedish text for the target audience.
- * All visible text on the generated image is in Swedish.
  */
 export function buildOverlayUrl(
   publicId: string,
@@ -43,7 +70,6 @@ export function buildOverlayUrl(
   }[style];
 
   const title = job.title || 'Casting';
-  // Swedish labels for the image overlay
   const salary = job.salary ? `Arvode: ${job.salary} kr` : 'Arvode: Ej angivet';
   const expiry = `Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`;
   const city = job.city || 'Sverige';
