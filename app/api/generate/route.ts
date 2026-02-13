@@ -6,13 +6,14 @@ import type { ImageStyle, CustomImageSettings } from '@/lib/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    // Estraiamo i dati assicurandoci che jobId sia una stringa
     const { jobId, title, salary, city, expiryDate, slugOrId, originalImage, style = 'cinematic', customSettings } = body;
 
-    // Validazione base
     if (!jobId || !title) {
       return NextResponse.json({ error: 'jobId and title are required' }, { status: 400 });
     }
 
+    // 1. Upload o Placeholder su Cloudinary
     let publicId: string;
     try {
       if (originalImage?.startsWith('http')) {
@@ -24,15 +25,20 @@ export async function POST(req: NextRequest) {
       publicId = await generatePlaceholderAndUpload(title);
     }
 
+    // 2. Formattazione dati per Cloudinary (Logica del tuo Workflow originale)
     const safeSlugOrId = slugOrId || String(jobId);
-    const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : null;
+    const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : 'Löpande';
+    
+    // Assicuriamoci che il salario sia trattato come nel tuo workflow
+    const formattedSalary = !salary || salary === 'Ej angivet' 
+      ? 'Ej angivet' 
+      : String(salary);
 
-    // Preparazione dati per i generatori di URL Cloudinary
     const jobData = {
       id: String(jobId),
-      title: title || '',
+      title: title || 'Casting',
       description: body.description || '',
-      salary: salary != null ? String(salary) : null, // Conversione esplicita in stringa
+      salary: formattedSalary,
       city: city || null,
       expiryDate: safeExpiryDate,
       slugOrId: safeSlugOrId,
@@ -41,22 +47,23 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
+    // 3. Generazione URL (Logica HD Overlay)
     const parsedCustom: CustomImageSettings | undefined = customSettings || undefined;
     const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle, parsedCustom);
     const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData, style as ImageStyle, parsedCustom);
 
-    // Salvataggio o aggiornamento nel Database con Prisma
+    // 4. FIX PRISMA: Upsert con conversione forzata a String
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
         jobId: String(jobId),
-        title: title || 'Untitled',
-        // Risolve l'errore PrismaClientValidationError: converte Int in String
-        salary: salary != null ? String(salary) : null,
-        city: city || null,
-        expiryDate: safeExpiryDate,
-        slugOrId: safeSlugOrId,
-        originalImage: originalImage || null,
+        title: jobData.title,
+        // Forziamo String per evitare PrismaClientValidationError
+        salary: String(jobData.salary), 
+        city: jobData.city,
+        expiryDate: jobData.expiryDate,
+        slugOrId: jobData.slugOrId,
+        originalImage: jobData.imageUrl,
         generatedImage: generatedImageUrl,
         style: style || 'cinematic',
         status: 'generated',
@@ -65,8 +72,9 @@ export async function POST(req: NextRequest) {
         generatedImage: generatedImageUrl,
         style: style || 'cinematic',
         status: 'generated',
-        // Assicura che anche l'aggiornamento riceva una stringa
-        salary: salary != null ? String(salary) : null,
+        // Aggiorniamo anche qui come stringa per sicurezza
+        salary: String(jobData.salary),
+        title: jobData.title,
       },
     });
 
