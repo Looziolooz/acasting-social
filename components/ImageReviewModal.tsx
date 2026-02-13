@@ -108,7 +108,15 @@ export default function ImageReviewModal({
       const res = await fetch('/api/caption', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job, platforms: ['facebook', 'instagram', 'linkedin', 'tiktok'] }),
+        body: JSON.stringify({
+          job: {
+            id: job.id, title: job.title, description: job.description,
+            salary: job.salary, city: job.city, expiryDate: job.expiryDate,
+            slugOrId: job.slugOrId, category: job.category, imageUrl: job.imageUrl,
+            createdAt: job.createdAt,
+          },
+          platforms: ['facebook', 'instagram', 'linkedin', 'tiktok'],
+        }),
       });
       const data = await res.json();
       if (data.captions) setCaptions(data.captions);
@@ -120,10 +128,10 @@ export default function ImageReviewModal({
   }, [job]);
 
   useEffect(() => {
-    if (rightTab === 'captions' || step === 'platforms') {
+    if (rightTab === 'captions' || rightTab === 'export') {
       if (!Object.keys(captions).length) fetchCaptions();
     }
-  }, [rightTab, step, fetchCaptions, captions]);
+  }, [rightTab, fetchCaptions, captions]);
 
   const downloadImageHD = async () => {
     if (!imageUrl) return;
@@ -191,6 +199,7 @@ export default function ImageReviewModal({
 
         <div className="flex flex-col md:flex-row overflow-hidden flex-1">
           <div className="md:w-[400px] lg:w-[440px] p-6 bg-black/40 flex flex-col gap-4 border-r border-white/5 overflow-y-auto">
+            {/* ANTEPRIMA HD - FIX: Tag <img> per nitidezza pixel 1:1 */}
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-surface-0">
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -213,14 +222,14 @@ export default function ImageReviewModal({
 
             <div className="grid grid-cols-2 gap-2">
               <button onClick={downloadImageHD} disabled={!imageUrl || generating}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30"
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30 hover:opacity-90"
                 style={{ background: 'var(--surface-3)', color: 'white' }}>
                 <Download size={14} /> Save HD
               </button>
               <button onClick={() => copyToClipboard(imageUrl || '', 'link')} disabled={!imageUrl || generating}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30"
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30 hover:opacity-90"
                 style={{ background: 'var(--surface-3)', color: 'white' }}>
-                <ImageIcon size={14} /> Copy Link
+                <ImageIcon size={14} /> {copiedCaption === 'link' ? 'Copied!' : 'Copy Link'}
               </button>
             </div>
           </div>
@@ -234,7 +243,7 @@ export default function ImageReviewModal({
                       ? 'text-white border-accent' : 'text-white/30 border-transparent hover:text-white/60'
                     }`}>
                     {key === 'style' ? <Palette size={14} /> : key === 'captions' ? <Eye size={14} /> : <ExternalLink size={14} />}
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                    {key}
                   </button>
                 ))}
               </div>
@@ -249,7 +258,9 @@ export default function ImageReviewModal({
                       {Object.entries(STYLE_LABELS).map(([styleKey, config]) => (
                         <button key={styleKey}
                           onClick={() => onRegenerate(styleKey as ImageStyle, styleKey === 'custom' ? customSet : undefined)}
-                          className={`p-4 rounded-2xl text-left border-2 transition-all ${currentStyle === styleKey ? 'border-accent bg-accent/10' : 'border-white/5 hover:border-white/15'}`}
+                          className={`p-4 rounded-2xl text-left border-2 transition-all ${currentStyle === styleKey
+                            ? 'border-accent bg-accent/10' : 'border-white/5 hover:border-white/15'
+                          }`}
                           style={{ background: currentStyle === styleKey ? undefined : 'var(--surface-2)' }}>
                           <div className="text-sm font-bold text-white">{config.label}</div>
                           <div className="text-[10px] text-white/40 mt-0.5">{config.desc}</div>
@@ -285,54 +296,14 @@ export default function ImageReviewModal({
                             <PlatformIcon platform={p} />
                             <span className="text-xs font-bold text-white uppercase">{config.label}</span>
                           </div>
-                          <button onClick={() => copyToClipboard(captions[p] || '', p)} className="text-[10px] text-accent-light uppercase font-bold hover:underline">
-                            {copiedCaption === p ? 'Copied!' : 'Copy'}
+                          <button onClick={() => copyToClipboard(captions[p] || '', p)} className="text-[10px] text-accent-light uppercase font-bold">
+                             {copiedCaption === p ? 'Copied!' : 'Copy'}
                           </button>
                         </div>
-                        <pre className="text-xs text-white/70 whitespace-pre-wrap font-sans">{captions[p] || 'Caption loading...'}</pre>
+                        <pre className="text-xs text-white/70 whitespace-pre-wrap font-sans">{captions[p] || '...'}</pre>
                       </div>
                     ))
                   }
-                </div>
-              )}
-
-              {step === 'platforms' && (
-                <div className="flex flex-col gap-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    {(Object.entries(PLATFORM_CONFIG) as [Platform, typeof PLATFORM_CONFIG[Platform]][]).map(([p, config]) => {
-                      const selected = selectedPlatforms.includes(p);
-                      return (
-                        <button key={p}
-                          onClick={() => setSelectedPlatforms(prev => selected ? prev.filter(x => x !== p) : [...prev, p])}
-                          className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all ${selected ? 'border-accent bg-accent/10' : 'border-white/5 hover:border-white/20'}`}
-                          style={{ background: selected ? undefined : 'var(--surface-2)' }}>
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={selected ? { backgroundColor: config.color } : { background: 'var(--surface-4)' }}>
-                            <PlatformIcon platform={p} />
-                          </div>
-                          <div className="text-left font-bold text-white text-sm">{config.label}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-3 mt-4">
-                    <button onClick={() => setStep('preview')} className="px-6 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest text-white bg-surface-3 hover:bg-surface-4">Back</button>
-                    <button onClick={handlePublish} disabled={!selectedPlatforms.length || publishing} className="flex-1 py-4 rounded-2xl font-black text-sm uppercase shadow-2xl transition-all text-white disabled:opacity-40" style={{ background: 'var(--accent)' }}>
-                      {publishing ? 'Publishing...' : `Publish to ${selectedPlatforms.length} channels`}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {step === 'done' && (
-                <div className="flex flex-col items-center justify-center py-10 gap-6">
-                  <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center border-2 border-emerald-500/30">
-                    <CheckCircle2 className="text-emerald-500" size={40} />
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-display font-bold text-white mb-1 uppercase">Published!</h3>
-                    <p className="text-white/40 text-sm">Your casting is now live on social media.</p>
-                  </div>
-                  <button onClick={onClose} className="w-full py-4 rounded-2xl font-black uppercase text-white bg-surface-3 hover:bg-surface-4 transition-all">Close</button>
                 </div>
               )}
             </div>

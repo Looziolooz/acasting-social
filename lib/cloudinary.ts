@@ -9,9 +9,6 @@ cloudinary.config({
   secure: true,
 });
 
-/**
- * Carica l'immagine originale su Cloudinary
- */
 export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
   const response = await fetch(imageUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
@@ -29,9 +26,6 @@ export async function uploadImageToCloudinary(imageUrl: string): Promise<string>
   });
 }
 
-/**
- * Genera un placeholder se l'annuncio non ha un'immagine
- */
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
   const url = `https://placehold.co/1080x1920/0D0D1A/7C3AED.png?text=${encodeURIComponent(jobTitle)}`;
   const response = await fetch(url);
@@ -56,9 +50,6 @@ function cfColor(color?: string): string {
   return `rgb:${hex}`;
 }
 
-/**
- * Genera l'URL per l'anteprima HD (DPR 2.0 + PNG)
- */
 export function buildOverlayUrl(
   publicId: string,
   job: AcastingJob,
@@ -71,9 +62,14 @@ export function buildOverlayUrl(
   const titleSize = custom?.titleSize ?? 54;
   const titleColor = cfColor(custom?.titleColor);
   const titleY = custom?.titleY ?? -250;
-  
+  const titleFont = custom?.titleFont ?? 'Arial';
+
+  const bodySize = custom?.subtitleSize ?? 46;
   const bodyColor = cfColor(custom?.subtitleColor || 'white');
-  const accentColor = cfColor(custom?.accentColor || '7C3AED');
+  const bodyFont = custom?.subtitleFont ?? 'Arial';
+
+  const ctaText = custom?.ctaText ?? 'ACASTING.SE';
+  const accentColor = cfColor(custom?.accentColor ?? '7C3AED');
 
   const brightness = custom?.brightness ?? (
     style === 'noir' ? -90 : style === 'purple' ? -60 : -85
@@ -84,24 +80,28 @@ export function buildOverlayUrl(
     : `Arvode: ${job.salary} kr`;
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
+  /**
+   * TRASFORMAZIONI ALTA QUALITÀ (RIF. DOC CLOUDINARY):
+   * 1. w_1080,h_1920: Dimensioni fisse per social.
+   * 2. dpr_2.0: Raddoppia la densità pixel per eliminare lo sfuocato su smartphone.
+   * 3. q_100: Disabilita la compressione distruttiva (lossless).
+   * 4. f_png: Forza l'output in PNG per testi nitidissimi senza artefatti JPG.
+   */
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
     `e_brightness:${brightness}`,
-    `l_text:Arial_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
+    `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
-    `l_text:Arial_46_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
-    `l_text:Arial_46_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
-    `l_text:Arial_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
-    `l_text:Arial:48_bold_center:${enc(custom?.ctaText || 'ACASTING.SE')},g_center,y_380,w_900,c_fit,co_${accentColor}`,
+    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
+    `l_text:${titleFont}_48_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
     'f_png'
   ].join('/');
 
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.png`;
 }
 
-/**
- * Genera l'URL per il download HD
- */
 export function buildHDDownloadUrl(
   publicId: string,
   job: AcastingJob,
