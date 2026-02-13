@@ -44,17 +44,12 @@ const enc = (text: string) =>
     .replace(/\//g, '%2F');
 
 function cfColor(color?: string): string {
-  if (!color || color === 'white') return 'white';
-  if (color === 'black') return 'black';
+  if (!color || color === 'white') return 'rgb:FFFFFF';
+  if (color === 'black') return 'rgb:000000';
   const hex = color.startsWith('#') ? color.slice(1) : color;
-  if (/^[0-9A-Fa-f]{6}$/.test(hex)) return `rgb:${hex}`;
-  return 'white';
+  return `rgb:${hex}`;
 }
 
-/**
- * Costruisce l'URL Cloudinary con overlay — basato sul workflow n8n funzionante.
- * Il pattern base è IDENTICO al workflow originale.
- */
 export function buildOverlayUrl(
   publicId: string,
   job: AcastingJob,
@@ -63,51 +58,45 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  // ── Resolve values (custom overrides > style defaults > base) ──
   const titleText = custom?.titleText || job.title || 'Casting';
-  const titleSize = custom?.titleSize ?? 46;
+  const titleSize = custom?.titleSize ?? 54;
   const titleColor = cfColor(custom?.titleColor);
   const titleY = custom?.titleY ?? -250;
   const titleFont = custom?.titleFont ?? 'Arial';
 
   const bodySize = custom?.subtitleSize ?? 46;
-  const bodyColor = cfColor(custom?.subtitleColor);
+  const bodyColor = cfColor(custom?.subtitleColor || 'white');
   const bodyFont = custom?.subtitleFont ?? 'Arial';
 
   const ctaText = custom?.ctaText ?? 'ACASTING.SE';
   const accentColor = cfColor(custom?.accentColor ?? '7C3AED');
 
   const brightness = custom?.brightness ?? (
-    style === 'noir' ? -90 :
-    style === 'purple' ? -60 :
-    style === 'cinematic' ? -85 : -75
+    style === 'noir' ? -90 : style === 'purple' ? -60 : -85
   );
 
-  // Prepara testi come nel workflow
   const salaryText = !job.salary || job.salary === 'Ej angivet'
     ? 'Arvode: Ej angivet'
     : `Arvode: ${job.salary} kr`;
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
-  // ── Build transforms — stessa struttura del workflow n8n ──
+  // TRASFORMAZIONI HD: 
+  // dpr_2.0 per raddoppiare i pixel (Retina), q_100 per zero compressione, f_png per testi cristallini
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,q_auto:best',
+    'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
     `e_brightness:${brightness}`,
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_900,c_fit,co_${titleColor}`,
-    'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
+    'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(expiryText)},g_center,y_140,w_900,c_fit,co_${bodyColor}`,
     `l_text:${bodyFont}_44_bold_center:${enc('Ansök nu på')},g_center,y_300,w_900,c_fit,co_${bodyColor}`,
     `l_text:${titleFont}_46_bold_center:${enc(ctaText)},g_center,y_380,w_900,c_fit,co_${accentColor}`,
-    'f_jpg'
+    'f_png'
   ].join('/');
 
-  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
+  return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.png`;
 }
 
-/**
- * Genera l'URL per il download — segue la stessa logica di buildOverlayUrl.
- */
 export function buildHDDownloadUrl(
   publicId: string,
   job: AcastingJob,
