@@ -26,7 +26,7 @@ export default function Dashboard() {
       const data = await res.json();
       setJobs(data.jobs || []);
     } catch (e) {
-      console.error(e);
+      console.error("Fetch error:", e);
     } finally {
       setLoading(false);
     }
@@ -39,7 +39,8 @@ export default function Dashboard() {
     setCurrentStyle(style);
     setGenerating(true);
     
-    // Non azzeriamo l'immagine qui per evitare il testo "Select a style..."
+    // RIMOSSO: setGeneratedImage(null); 
+    // Manteniamo l'URL se presente per evitare il messaggio "Select a style to preview"
 
     try {
       const res = await fetch('/api/generate', {
@@ -59,10 +60,14 @@ export default function Dashboard() {
           customSettings: custom
         }),
       });
+
       const data = await res.json();
+      
       if (data.imageUrl) {
-        setGeneratedImage(data.imageUrl); // Imposta l'URL per il modal
+        setGeneratedImage(data.imageUrl); // Aggiorna l'immagine nel modal
         setJobs((prev) => prev.map((j) => String(j.id) === String(job.id) ? { ...j, processedStatus: 'generated' } : j));
+      } else {
+        console.error("API did not return imageUrl:", data);
       }
     } catch (e) {
       console.error("Generate error:", e);
