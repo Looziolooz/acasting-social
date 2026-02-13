@@ -52,8 +52,8 @@ function cfColor(color?: string): string {
 }
 
 /**
- * Genera l'URL HD ad altissima qualità.
- * FIX: Utilizza dpr_2.0 per raddoppiare la densità dei pixel (Retina) e f_png per testi nitidi.
+ * Costruisce l'URL Cloudinary con overlay — basato sul workflow n8n funzionante.
+ * Il pattern base è IDENTICO al workflow originale.
  */
 export function buildOverlayUrl(
   publicId: string,
@@ -63,8 +63,9 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
+  // ── Resolve values (custom overrides > style defaults > base) ──
   const titleText = custom?.titleText || job.title || 'Casting';
-  const titleSize = custom?.titleSize ?? 54;
+  const titleSize = custom?.titleSize ?? 46;
   const titleColor = cfColor(custom?.titleColor);
   const titleY = custom?.titleY ?? -250;
   const titleFont = custom?.titleFont ?? 'Arial';
@@ -82,17 +83,13 @@ export function buildOverlayUrl(
     style === 'cinematic' ? -85 : -75
   );
 
+  // Prepara testi come nel workflow
   const salaryText = !job.salary || job.salary === 'Ej angivet'
     ? 'Arvode: Ej angivet'
     : `Arvode: ${job.salary} kr`;
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
-  /**
-   * TRASFORMAZIONI HD:
-   * 1. dpr_2.0: Genera un'immagine con risoluzione logica di 1080x1920 ma fisica di 2160x3840.
-   * 2. q_100: Disabilita ogni compressione lossy.
-   * 3. f_png: Forza l'output in PNG per evitare il "rumore" JPG intorno ai testi bianchi.
-   */
+  // ── Build transforms — stessa struttura del workflow n8n ──
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,q_auto:best',
     `e_brightness:${brightness}`,
@@ -108,12 +105,14 @@ export function buildOverlayUrl(
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}.jpg`;
 }
 
+/**
+ * Genera l'URL per il download — segue la stessa logica di buildOverlayUrl.
+ */
 export function buildHDDownloadUrl(
   publicId: string,
   job: AcastingJob,
   style: ImageStyle = 'cinematic',
   custom?: CustomImageSettings
 ): string {
-  // Qualità massima già inclusa nell'overlay principale
   return buildOverlayUrl(publicId, job, style, custom);
 }
