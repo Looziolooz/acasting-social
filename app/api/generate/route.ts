@@ -6,44 +6,29 @@ import type { ImageStyle, CustomImageSettings } from '@/lib/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // Extrahera data från Acasting-listing
-    const { 
-      jobId, 
-      title, 
-      salary, 
-      city, 
-      expiryDate, 
-      slugOrId, 
-      originalImage, // Denna URL kommer från acasting.se
-      style = 'cinematic', 
-      customSettings 
-    } = body;
+    const { jobId, title, salary, city, expiryDate, slugOrId, originalImage, style = 'cinematic', customSettings } = body;
 
-    // Grundläggande validering
     if (!jobId || !title) {
       return NextResponse.json({ error: 'jobId and title are required' }, { status: 400 });
     }
 
-    // 1. Extrahera och ladda upp bild till Cloudinary (Fix för Acasting URL)
+    // 1. Caricamento immagine da acasting.se a Cloudinary
     let publicId: string;
     try {
       if (originalImage && originalImage.startsWith('http')) {
-        // Laddar upp bilden som extraherats från Acasting till Cloudinary
         publicId = await uploadImageToCloudinary(originalImage);
       } else {
-        // Fallback om ingen bild finns i annonsen
         publicId = await generatePlaceholderAndUpload(title);
       }
     } catch (e) {
-      console.error('Cloudinary upload error:', e);
       publicId = await generatePlaceholderAndUpload(title);
     }
 
-    // 2. Formatera data enligt din ursprungliga workflow-logik
+    // 2. Formattazione dati (Workflow originale)
     const safeSlugOrId = slugOrId || String(jobId);
     const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : 'Löpande';
     
-    // Workflow Fix: Hantera "Ej angivet" och konvertera tal till sträng
+    // Converte salary in stringa per evitare errori Prisma
     const formattedSalary = !salary || salary === 'Ej angivet' 
       ? 'Ej angivet' 
       : String(salary);
@@ -51,33 +36,28 @@ export async function POST(req: NextRequest) {
     const jobData = {
       id: String(jobId),
       title: title || 'Casting',
-      description: body.description || '',
       salary: formattedSalary,
       city: city || null,
       expiryDate: safeExpiryDate,
       slugOrId: safeSlugOrId,
-      category: body.category || null,
       imageUrl: originalImage || null,
-      createdAt: new Date().toISOString(),
     };
 
-    // 3. Generera Cloudinary URLs med overlay (Telegram Fix)
     const parsedCustom: CustomImageSettings | undefined = customSettings || undefined;
-    const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle, parsedCustom);
-    const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData, style as ImageStyle, parsedCustom);
+    const generatedImageUrl = buildOverlayUrl(publicId, jobData as any, style as ImageStyle, parsedCustom);
+    const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData as any, style as ImageStyle, parsedCustom);
 
-    // 4. FIX PRISMA: Upsert med tvingad String-konvertering för salary
+    // 3. Salvataggio Database con FIX TIPO (Int -> String)
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
         jobId: String(jobId),
-        title: jobData.title,
-        // Förhindrar PrismaClientValidationError genom att skicka sträng istället för Int
-        salary: String(jobData.salary), 
-        city: jobData.city,
-        expiryDate: jobData.expiryDate,
-        slugOrId: jobData.slugOrId,
-        originalImage: jobData.imageUrl,
+        title: title || 'Untitled',
+        salary: String(formattedSalary), // Fix Prisma ValidationError
+        city: city || null,
+        expiryDate: safeExpiryDate,
+        slugOrId: safeSlugOrId,
+        originalImage: originalImage || null,
         generatedImage: generatedImageUrl,
         style: style || 'cinematic',
         status: 'generated',
@@ -86,8 +66,8 @@ export async function POST(req: NextRequest) {
         generatedImage: generatedImageUrl,
         style: style || 'cinematic',
         status: 'generated',
-        salary: String(jobData.salary),
-        title: jobData.title,
+        salary: String(formattedSalary),
+        title: title || 'Untitled',
       },
     });
 

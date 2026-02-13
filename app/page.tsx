@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState<Tab>('new');
   const [selectedJob, setSelectedJob] = useState<AnnotatedJob | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-const [currentStyle, setCurrentStyle] = useState<ImageStyle>('cinematic');
+  const [currentStyle, setCurrentStyle] = useState<ImageStyle>('cinematic');
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<'all' | 'new' | 'done'>('all');
 
@@ -34,10 +34,13 @@ const [currentStyle, setCurrentStyle] = useState<ImageStyle>('cinematic');
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
-const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'cinematic', custom?: CustomImageSettings) => {    setSelectedJob(job);
+  const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'cinematic', custom?: CustomImageSettings) => {
+    setSelectedJob(job);
     setCurrentStyle(style);
     setGenerating(true);
-    setGeneratedImage(null);
+    
+    // Non azzeriamo l'immagine qui per evitare il testo "Select a style..."
+
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -51,17 +54,21 @@ const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'cinematic'
           slugOrId: job.slugOrId, 
           category: job.category,
           description: job.description, 
-          originalImage: job.imageUrl, 
+          originalImage: job.imageUrl, // URL estratto da acasting.se
           style,
           customSettings: custom
         }),
       });
       const data = await res.json();
       if (data.imageUrl) {
-        setGeneratedImage(data.imageUrl);
+        setGeneratedImage(data.imageUrl); // Imposta l'URL per il modal
         setJobs((prev) => prev.map((j) => String(j.id) === String(job.id) ? { ...j, processedStatus: 'generated' } : j));
       }
-    } finally { setGenerating(false); }
+    } catch (e) {
+      console.error("Generate error:", e);
+    } finally { 
+      setGenerating(false); 
+    }
   };
 
   const handlePublished = (jobId: string, platforms: string[]) => {
