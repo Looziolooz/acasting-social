@@ -6,30 +6,44 @@ import type { ImageStyle, CustomImageSettings } from '@/lib/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // Estraiamo i dati assicurandoci che jobId sia una stringa
-    const { jobId, title, salary, city, expiryDate, slugOrId, originalImage, style = 'cinematic', customSettings } = body;
+    // Extrahera data från Acasting-listing
+    const { 
+      jobId, 
+      title, 
+      salary, 
+      city, 
+      expiryDate, 
+      slugOrId, 
+      originalImage, // Denna URL kommer från acasting.se
+      style = 'cinematic', 
+      customSettings 
+    } = body;
 
+    // Grundläggande validering
     if (!jobId || !title) {
       return NextResponse.json({ error: 'jobId and title are required' }, { status: 400 });
     }
 
-    // 1. Upload o Placeholder su Cloudinary
+    // 1. Extrahera och ladda upp bild till Cloudinary (Fix för Acasting URL)
     let publicId: string;
     try {
-      if (originalImage?.startsWith('http')) {
+      if (originalImage && originalImage.startsWith('http')) {
+        // Laddar upp bilden som extraherats från Acasting till Cloudinary
         publicId = await uploadImageToCloudinary(originalImage);
       } else {
+        // Fallback om ingen bild finns i annonsen
         publicId = await generatePlaceholderAndUpload(title);
       }
     } catch (e) {
+      console.error('Cloudinary upload error:', e);
       publicId = await generatePlaceholderAndUpload(title);
     }
 
-    // 2. Formattazione dati per Cloudinary (Logica del tuo Workflow originale)
+    // 2. Formatera data enligt din ursprungliga workflow-logik
     const safeSlugOrId = slugOrId || String(jobId);
     const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : 'Löpande';
     
-    // Assicuriamoci che il salario sia trattato come nel tuo workflow
+    // Workflow Fix: Hantera "Ej angivet" och konvertera tal till sträng
     const formattedSalary = !salary || salary === 'Ej angivet' 
       ? 'Ej angivet' 
       : String(salary);
@@ -47,18 +61,18 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // 3. Generazione URL (Logica HD Overlay)
+    // 3. Generera Cloudinary URLs med overlay (Telegram Fix)
     const parsedCustom: CustomImageSettings | undefined = customSettings || undefined;
     const generatedImageUrl = buildOverlayUrl(publicId, jobData, style as ImageStyle, parsedCustom);
     const hdDownloadUrl = buildHDDownloadUrl(publicId, jobData, style as ImageStyle, parsedCustom);
 
-    // 4. FIX PRISMA: Upsert con conversione forzata a String
+    // 4. FIX PRISMA: Upsert med tvingad String-konvertering för salary
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
         jobId: String(jobId),
         title: jobData.title,
-        // Forziamo String per evitare PrismaClientValidationError
+        // Förhindrar PrismaClientValidationError genom att skicka sträng istället för Int
         salary: String(jobData.salary), 
         city: jobData.city,
         expiryDate: jobData.expiryDate,
@@ -72,7 +86,6 @@ export async function POST(req: NextRequest) {
         generatedImage: generatedImageUrl,
         style: style || 'cinematic',
         status: 'generated',
-        // Aggiorniamo anche qui come stringa per sicurezza
         salary: String(jobData.salary),
         title: jobData.title,
       },
