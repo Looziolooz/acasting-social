@@ -52,8 +52,8 @@ function cfColor(color?: string): string {
 }
 
 /**
- * Genera l'URL HD. 
- * Miglioramenti: dpr_2.0 per Retina, q_100 per zero compressione, f_png per testi nitidi.
+ * Genera l'URL HD ad altissima qualità.
+ * FIX: Utilizza dpr_2.0 per raddoppiare la densità dei pixel (Retina) e f_png per testi nitidi.
  */
 export function buildOverlayUrl(
   publicId: string,
@@ -87,7 +87,12 @@ export function buildOverlayUrl(
     : `Arvode: ${job.salary} kr`;
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
-  // Trasformazioni HD con densità pixel raddoppiata e formato PNG
+  /**
+   * TRASFORMAZIONI HD:
+   * 1. dpr_2.0: Genera un'immagine con risoluzione logica di 1080x1920 ma fisica di 2160x3840.
+   * 2. q_100: Disabilita ogni compressione lossy.
+   * 3. f_png: Forza l'output in PNG per evitare il "rumore" JPG intorno ai testi bianchi.
+   */
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_100',
     `e_brightness:${brightness}`,
@@ -109,5 +114,6 @@ export function buildHDDownloadUrl(
   style: ImageStyle = 'cinematic',
   custom?: CustomImageSettings
 ): string {
+  // Qualità massima già inclusa nell'overlay principale
   return buildOverlayUrl(publicId, job, style, custom);
 }

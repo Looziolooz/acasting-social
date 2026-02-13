@@ -32,7 +32,7 @@ const PlatformIcon = ({ platform, size = 16 }: { platform: Platform; size?: numb
     case 'facebook': return <Facebook size={size} />;
     case 'instagram': return <Instagram size={size} />;
     case 'linkedin': return <Linkedin size={size} />;
-    case 'tiktok': return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.37a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.8z" /></svg>;
+    case 'tiktok': return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.37a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.8z" /></svg>;
   }
 };
 
@@ -220,7 +220,7 @@ export default function ImageReviewModal({
 
         <div className="flex flex-col md:flex-row overflow-hidden flex-1">
           <div className="md:w-[400px] lg:w-[440px] p-6 bg-black/40 flex flex-col gap-4 border-r border-white/5 overflow-y-auto">
-            {/* Anteprima HD con rendering browser standard */}
+            {/* ANTEPRIMA HD - FIX: Rimosso next/image che sfuocava i testi generati dinamicamente */}
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-surface-0">
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -232,7 +232,7 @@ export default function ImageReviewModal({
                   src={imageUrl} 
                   alt="HD Preview" 
                   className="w-full h-full object-cover" 
-                  style={{ imageRendering: 'auto' }}
+                  style={{ imageRendering: 'auto' }} 
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/20 text-sm font-display uppercase tracking-widest">
