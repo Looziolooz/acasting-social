@@ -1,7 +1,4 @@
 // lib/cloudinary.ts — v5: Simplified (upload only, no URL transforms)
-// Image generation is now done server-side by image-generator.ts
-// Cloudinary is used ONLY for hosting the final image.
-
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -22,7 +19,6 @@ export interface CloudinaryUploadResult {
 
 /**
  * Upload a pre-generated image buffer to Cloudinary.
- * Returns the direct URL — no URL transformations needed.
  */
 export async function uploadFinalImage(
   buffer: Buffer,
@@ -38,6 +34,8 @@ export async function uploadFinalImage(
         resource_type: 'image',
         type: 'upload',
         format: 'png',
+        quality: "100",
+        flags: "preserve_transparency",
         overwrite: true,
         invalidate: true,
       },
@@ -63,17 +61,15 @@ export async function uploadFinalImage(
 }
 
 /**
- * Upload a pre-generated image and return a JPG version for preview (smaller file)
+ * Genera l'URL di anteprima usando f_auto, q_90 e dpr_2.0 per la massima nitidezza (come n8n)
  */
 export function getPreviewUrl(secureUrl: string): string {
-  // Rimuovi tutte le trasformazioni complesse. 
-  // Usa solo l'ottimizzazione automatica di base per la velocità.
-  return secureUrl.replace('/upload/', '/upload/f_auto,q_auto/');
+  return secureUrl.replace('/upload/', '/upload/f_auto,q_90,dpr_2.0/');
 }
 
 /**
- * The original PNG URL is the HD download URL (no transforms needed)
+ * The original PNG URL is the HD download URL
  */
 export function getDownloadUrl(secureUrl: string): string {
-  return secureUrl; // Already full quality PNG
+  return secureUrl;
 }
