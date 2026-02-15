@@ -66,8 +66,9 @@ export async function uploadFinalImage(
  * Upload a pre-generated image and return a JPG version for preview (smaller file)
  */
 export function getPreviewUrl(secureUrl: string): string {
-  // Convert the PNG URL to a Cloudinary-optimized JPG for faster preview
-  return secureUrl.replace('/upload/', '/upload/q_85,f_jpg/');
+  // Rimuovi tutte le trasformazioni complesse. 
+  // Usa solo l'ottimizzazione automatica di base per la velocità.
+  return secureUrl.replace('/upload/', '/upload/f_auto,q_auto/');
 }
 
 /**

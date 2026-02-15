@@ -47,8 +47,8 @@ async function fetchSourceImage(imageUrl: string): Promise<Buffer | null> {
   for (const url of candidates) {
     try {
       console.log(`🔄 Fetching: ${url.substring(0, 100)}...`);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
+     const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // Aumentato a 15s
 
       const response = await fetch(url, {
         headers: {
