@@ -1,13 +1,13 @@
 // lib/pexels.ts
 export interface PexelsPhoto {
   id: number;
-  url: string;        // Pexels page URL
+  url: string;        // URL della pagina Pexels
   photographer: string;
   src: {
     original: string;
-    large2x: string;  // 940px wide
-    large: string;    // 640px wide
-    medium: string;   // 350px wide
+    large2x: string;  // 940px di larghezza
+    large: string;    // 640px di larghezza
+    medium: string;   // 350px di larghezza
     portrait: string; // 800x1200
   };
   alt: string;
@@ -22,7 +22,7 @@ export interface AlternativeImage {
   source: 'original' | 'pexels';
   label: string;
   photographer?: string;
-  pexelsUrl?: string;    // Link alla pagina Pexels (attribuzione)
+  pexelsUrl?: string;    // Link alla pagina Pexels per attribuzione
 }
 
 // Mappatura categorie svedesi → query inglesi per risultati migliori
@@ -42,7 +42,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 };
 
 /**
- * Genera query di ricerca intelligenti basate sul job
+ * Genera query di ricerca intelligenti basate sui dati del lavoro
  */
 function buildSearchQueries(
   title: string,
@@ -77,7 +77,7 @@ function buildSearchQueries(
 }
 
 /**
- * Estrai keyword utili dal titolo (rimuovi parole svedesi comuni)
+ * Estrae keyword utili dal titolo svedese e le traduce in inglese
  */
 function extractKeywords(title: string): string {
   const stopWords = [
@@ -109,7 +109,7 @@ function extractKeywords(title: string): string {
 }
 
 /**
- * Cerca immagini su Pexels
+ * Funzione per cercare immagini su Pexels
  */
 export async function searchPexels(
   query: string,
@@ -118,7 +118,7 @@ export async function searchPexels(
   const apiKey = process.env.PEXELS_API_KEY;
 
   if (!apiKey) {
-    console.error('❌ CRITICAL: PEXELS_API_KEY is missing from environment variables');
+    console.error('❌ ERRORE CRITICO: PEXELS_API_KEY non configurata nelle variabili di ambiente');
     return [];
   }
 
@@ -130,20 +130,20 @@ export async function searchPexels(
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      console.error(`❌ Pexels API Error (${res.status}):`, errorData);
+      console.error(`❌ Errore API Pexels (${res.status}):`, errorData);
       return [];
     }
 
     const data = await res.json();
     return data.photos || [];
   } catch (error) {
-    console.error('❌ Pexels fetch exception:', error);
+    console.error('❌ Eccezione durante il fetch da Pexels:', error);
     return [];
   }
 }
 
 /**
- * Funzione principale: trova alternative per un job
+ * Funzione principale per trovare immagini alternative per un lavoro
  */
 export async function findAlternativeImages(
   title: string,
@@ -154,7 +154,7 @@ export async function findAlternativeImages(
 ): Promise<AlternativeImage[]> {
   const alternatives: AlternativeImage[] = [];
 
-  // 1. Sempre includere l'originale come prima opzione
+  // 1. Inserisce sempre l'immagine originale come prima opzione
   if (originalImageUrl) {
     alternatives.push({
       id: 'original',
@@ -165,9 +165,9 @@ export async function findAlternativeImages(
     });
   }
 
-  // Verifica API Key prima di procedere
+  // Verifica se la chiave API esiste prima di eseguire la ricerca
   if (!process.env.PEXELS_API_KEY) {
-    console.warn('⚠️ Skipping Pexels search: API Key not configured');
+    console.warn('⚠️ Ricerca Pexels saltata: Chiave API non configurata');
     return alternatives;
   }
 
