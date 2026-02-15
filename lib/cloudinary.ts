@@ -1,4 +1,4 @@
-// lib/cloudinary.ts — v5: Simplified (High Quality Hosting)
+// lib/cloudinary.ts
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -8,50 +8,46 @@ cloudinary.config({
   secure: true,
 });
 
-export interface CloudinaryUploadResult {
-  publicId: string;
-  url: string;
-  secureUrl: string;
-  width: number;
-  height: number;
-  bytes: number;
-}
-
-export async function uploadFinalImage(buffer: Buffer, jobId: string): Promise<CloudinaryUploadResult> {
+export async function uploadFinalImage(buffer: Buffer, jobId: string) {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
       {
         folder: 'acasting/social',
-        public_id: `social-${jobId}-${Date.now()}`,
+        public_id: `social-${jobId}`,
         resource_type: 'image',
-        format: 'png',
-        quality: "100",
         overwrite: true,
-        invalidate: true,
       },
       (error, result) => {
         if (error) return reject(error);
-        resolve({
-          publicId: result!.public_id,
-          url: result!.url,
-          secureUrl: result!.secure_url,
-          width: result!.width,
-          height: result!.height,
-          bytes: result!.bytes,
-        });
+        resolve(result);
       }
     ).end(buffer);
   });
 }
 
-/**
- * Genera l'URL di anteprima HD (Simile a n8n)
- */
-export function getPreviewUrl(secureUrl: string): string {
-  // This matches the "transforms" logic in your n8n JSON file
-  return secureUrl.replace('/upload/', '/upload/f_auto,q_90,dpr_2.0/');
-}
+// Questa funzione ora replica ESATTAMENTE il tuo workflow n8n
+export function getPreviewUrl(secureUrl: string, job: any): string {
+  const publicIdWithFolder = secureUrl.split('/upload/')[1].split('.')[0];
+  
+  const enc = (text: string) => encodeURIComponent(text || '')
+    .replace(/,/g, '%2C')
+    .replace(/\//g, '%2F');
 
-export function getDownloadUrl(secureUrl: string): string {
-  return secureUrl;
+  const title = job.title || 'Casting';
+  const salaryText = !job.salary || job.salary === 'Ej angivet' ? 'Arvode: Ej angivet' : `Arvode: ${job.salary} kr`;
+  const expiry = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
+
+  const transforms = [
+    'w_1080,h_1920,c_fill,g_center,q_auto',
+    'e_brightness:-85',
+    `l_text:Arial_46_bold_center:${enc(title)},g_center,y_-250,w_900,c_fit,co_white`,
+    'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
+    `l_text:Arial_46_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_white`,
+    `l_text:Arial_46_bold_center:${enc(expiry)},g_center,y_140,w_900,c_fit,co_white`,
+    'l_text:Arial_46_bold_center:Ansök nu på,g_center,y_300,w_900,c_fit,co_white',
+    'l_text:Arial_46_bold_center:ACASTING,g_center,y_380,w_900,c_fit,co_rgb:7C3AED',
+    'f_jpg'
+  ].join('/');
+
+  return `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${transforms}/${publicIdWithFolder}.jpg`;
 }
