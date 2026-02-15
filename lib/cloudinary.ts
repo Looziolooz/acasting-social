@@ -1,3 +1,4 @@
+// lib/cloudinary.ts
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -25,14 +26,9 @@ export async function uploadFinalImage(buffer: Buffer, jobId: string) {
   });
 }
 
-/**
- * REPLICA ESATTA DEL WORKFLOW n8n
- * Utilizza dpr_2.0 e q_90 per la massima nitidezza HD
- */
 export function getPreviewUrl(secureUrl: string, job: any): string {
+  // Estraiamo ESATTAMENTE il public_id pulito (es: acasting/social/social-123)
   const parts = secureUrl.split('/upload/');
-  if (parts.length < 2) return secureUrl;
-
   const publicIdWithFolder = parts[1].split('.')[0]; 
   
   const enc = (text: string) => encodeURIComponent(text || '')
@@ -43,6 +39,7 @@ export function getPreviewUrl(secureUrl: string, job: any): string {
   const salaryText = !job.salary || job.salary === 'Ej angivet' ? 'Arvode: Ej angivet' : `Arvode: ${job.salary} kr`;
   const expiry = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
+  // REPLICA ESATTA DEL TUO WORKFLOW n8n (transforms)
   const transforms = [
     'w_1080,h_1920,c_fill,g_center,dpr_2.0,q_90',
     'e_brightness:-85',
