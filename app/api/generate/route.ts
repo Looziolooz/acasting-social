@@ -11,13 +11,13 @@ export async function POST(req: NextRequest) {
 
     if (!originalImage) return NextResponse.json({ error: 'Nessuna immagine fornita' }, { status: 400 });
 
-    // 1. Download immagine tramite Sharp
+    // 1. Processamento base (Sharp)
     const generated = await generateSocialImage(originalImage);
 
-    // 2. Upload immagine pulita su Cloudinary
+    // 2. Upload immagine originale pulita su Cloudinary
     const uploaded: any = await uploadFinalImage(generated.buffer, String(jobId));
 
-    // 3. Generazione URL finale con Overlay (Logica n8n)
+    // 3. Generazione URL finale con logica n8n (Cloudinary Overlay)
     const finalImageUrl = getPreviewUrl(uploaded.secure_url, { title, salary, expiryDate });
 
     // 4. Update Database
