@@ -1,28 +1,23 @@
-// lib/image-generator.ts — Solo download e ottimizzazione base
 import sharp from 'sharp';
 
 export interface GeneratedImage {
   buffer: Buffer;
-  sourceQuality: 'high' | 'medium' | 'low';
 }
 
 export async function generateSocialImage(imageUrl: string | null): Promise<GeneratedImage> {
-  if (!imageUrl) {
-    throw new Error("L'URL dell'immagine è obbligatorio");
-  }
+  if (!imageUrl) throw new Error("URL immagine mancante");
 
-  // Scarica l'immagine originale
+  // Scarichiamo l'immagine originale
   const response = await fetch(imageUrl);
+  if (!response.ok) throw new Error("Impossibile scaricare l'immagine sorgente");
+  
   const buffer = Buffer.from(await response.arrayBuffer());
   
-  // Ritorna il buffer originale senza filtri distruttivi (niente blur)
+  // Ridimensioniamo solo per uniformità, senza applicare filtri o testi
   const finalBuffer = await sharp(buffer)
     .resize(1080, 1920, { fit: 'cover', position: 'center' })
-    .png()
+    .toFormat('jpg', { quality: 100 })
     .toBuffer();
 
-  return {
-    buffer: finalBuffer,
-    sourceQuality: 'high',
-  };
+  return { buffer: finalBuffer };
 }

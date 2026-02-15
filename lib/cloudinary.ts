@@ -1,4 +1,3 @@
-// lib/cloudinary.ts
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -26,14 +25,10 @@ export async function uploadFinalImage(buffer: Buffer, jobId: string) {
   });
 }
 
-/**
- * REPLICA ESATTA DEL WORKFLOW n8n
- * Genera l'URL con overlay dinamico
- */
 export function getPreviewUrl(secureUrl: string, job: any): string {
-  // Estrae il public_id includendo la cartella
-  const parts = secureUrl.split('/upload/');
-  const publicIdWithFolder = parts[1].split('.')[0];
+  // Estraiamo solo il path dopo /upload/ senza l'estensione finale
+  const urlParts = secureUrl.split('/upload/');
+  const publicIdWithFolder = urlParts[1].split('.')[0]; 
   
   const enc = (text: string) => encodeURIComponent(text || '')
     .replace(/,/g, '%2C')
@@ -43,8 +38,9 @@ export function getPreviewUrl(secureUrl: string, job: any): string {
   const salaryText = !job.salary || job.salary === 'Ej angivet' ? 'Arvode: Ej angivet' : `Arvode: ${job.salary} kr`;
   const expiry = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
+  // REPLICA ESATTA DEL TUO WORKFLOW n8n
   const transforms = [
-    'w_1080,h_1920,c_fill,g_center,q_auto', // Qualità automatica come n8n
+    'w_1080,h_1920,c_fill,g_center,q_auto',
     'e_brightness:-85',
     `l_text:Arial_46_bold_center:${enc(title)},g_center,y_-250,w_900,c_fit,co_white`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_white',
