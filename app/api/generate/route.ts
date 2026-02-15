@@ -1,26 +1,26 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { generateSocialImage } from '@/lib/image-generator';
 import { uploadFinalImage, getPreviewUrl } from '@/lib/cloudinary';
 import { db } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { jobId, title, salary, city, expiryDate, originalImage } = body;
+    const { jobId, title, salary, expiryDate, originalImage } = body;
 
-    if (!originalImage) return NextResponse.json({ error: 'No image' }, { status: 400 });
+    if (!originalImage) return NextResponse.json({ error: 'Nessuna immagine fornita' }, { status: 400 });
 
-    // 1. Scarichiamo l'immagine originale per caricarla sul TUO Cloudinary
-    const imageRes = await fetch(originalImage);
-    const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
+    // 1. Download immagine tramite Sharp
+    const generated = await generateSocialImage(originalImage);
 
-    // 2. Carichiamo l'immagine "pulita"
-    const uploaded: any = await uploadFinalImage(imageBuffer, jobId);
+    // 2. Upload immagine pulita su Cloudinary
+    const uploaded: any = await uploadFinalImage(generated.buffer, String(jobId));
 
-    // 3. Generiamo l'URL con Overlay (logica n8n)
+    // 3. Generazione URL finale con Overlay (Logica n8n)
     const finalImageUrl = getPreviewUrl(uploaded.secure_url, { title, salary, expiryDate });
 
-    // 4. Salva nel DB
+    // 4. Update Database
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         status: 'generated',
         generatedImage: finalImageUrl,
         slugOrId: jobId,
+        originalImage,
       },
       update: {
         generatedImage: finalImageUrl,
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, imageUrl: finalImageUrl });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
+    console.error('Errore generazione:', error);
+    return NextResponse.json({ error: 'Generazione fallita' }, { status: 500 });
   }
 }
