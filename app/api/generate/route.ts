@@ -1,11 +1,7 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  uploadImageToCloudinary,
-  buildOverlayUrl,
-  buildHDDownloadUrl,
-  generatePlaceholderAndUpload,
-} from '@/lib/cloudinary';
+import { generateSocialImage } from '@/lib/image-generator';
+import { uploadFinalImage, getPreviewUrl, getDownloadUrl } from '@/lib/cloudinary';
 import { db } from '@/lib/db';
 import type { ImageStyle, CustomImageSettings } from '@/lib/types';
 
@@ -24,42 +20,15 @@ export async function POST(req: NextRequest) {
       customSettings,
     } = body;
 
-    console.log('🎬 Starting generation:', { jobId, title: title?.substring(0, 40), style });
+    console.log('🎬 Generating:', { jobId, title: title?.substring(0, 40), style });
 
     if (!jobId || !title) {
-      return NextResponse.json(
-        { error: 'jobId and title are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'jobId and title required' }, { status: 400 });
     }
 
-    // 1. Upload + quality detection
-    let uploadResult;
-    try {
-      if (originalImage && originalImage.startsWith('http')) {
-        console.log(`📸 Source: ${originalImage.substring(0, 100)}...`);
-        uploadResult = await uploadImageToCloudinary(originalImage);
-      } else {
-        console.log('⚠️ No source image, using placeholder');
-        uploadResult = await generatePlaceholderAndUpload(title);
-      }
-    } catch (e) {
-      console.error('❌ Upload failed, falling back to placeholder:', e);
-      uploadResult = await generatePlaceholderAndUpload(title);
-    }
-
-    console.log(
-      `📊 Source analysis: ${uploadResult.width}x${uploadResult.height}, ` +
-      `${(uploadResult.bytes / 1024).toFixed(1)} KB → Quality: ${uploadResult.quality.toUpperCase()}`
-    );
-
-    // 2. Format data
-    const safeSlugOrId = slugOrId || String(jobId);
-    const safeExpiryDate = expiryDate
-      ? String(expiryDate).split('T')[0]
-      : 'Löpande';
-    const formattedSalary =
-      !salary || salary === 'Ej angivet' ? 'Ej angivet' : String(salary);
+    // Build job data
+    const safeExpiryDate = expiryDate ? String(expiryDate).split('T')[0] : 'Löpande';
+    const formattedSalary = !salary || salary === 'Ej angivet' ? 'Ej angivet' : String(salary);
 
     const jobData = {
       id: String(jobId),
@@ -67,31 +36,29 @@ export async function POST(req: NextRequest) {
       salary: formattedSalary,
       city: city || null,
       expiryDate: safeExpiryDate,
-      slugOrId: safeSlugOrId,
+      slugOrId: slugOrId || String(jobId),
       imageUrl: originalImage || null,
     };
 
-    // 3. Build URLs with quality-aware pipeline
-    const generatedImageUrl = buildOverlayUrl(
-      uploadResult.publicId,
+    // 🔥 Step 1: Generate image server-side with Sharp
+    const generated = await generateSocialImage(
+      originalImage || null,
       jobData as any,
       style as ImageStyle,
-      customSettings,
-      uploadResult.quality // 🆕 Passa la qualità rilevata
+      customSettings as CustomImageSettings
     );
 
-    const hdDownloadUrl = buildHDDownloadUrl(
-      uploadResult.publicId,
-      jobData as any,
-      style as ImageStyle,
-      customSettings,
-      uploadResult.quality // 🆕 Passa la qualità rilevata
-    );
+    // 🔥 Step 2: Upload final image to Cloudinary (just for hosting)
+    const uploaded = await uploadFinalImage(generated.buffer, String(jobId));
 
-    console.log(`🎨 Quality pipeline: ${uploadResult.quality.toUpperCase()}`);
-    console.log(`   Preview: ${generatedImageUrl.substring(0, 150)}...`);
+    // URLs
+    const previewUrl = getPreviewUrl(uploaded.secureUrl);
+    const hdDownloadUrl = getDownloadUrl(uploaded.secureUrl);
 
-    // 4. Save to database
+    console.log(`📊 Result: ${generated.sourceQuality.toUpperCase()} source → ${generated.width}x${generated.height}`);
+    console.log(`🔗 Preview: ${previewUrl}`);
+
+    // Step 3: Save to database
     await db.processedJob.upsert({
       where: { jobId: String(jobId) },
       create: {
@@ -100,14 +67,14 @@ export async function POST(req: NextRequest) {
         salary: String(formattedSalary),
         city: city || null,
         expiryDate: safeExpiryDate,
-        slugOrId: safeSlugOrId,
+        slugOrId: slugOrId || String(jobId),
         originalImage: originalImage || null,
-        generatedImage: generatedImageUrl,
+        generatedImage: previewUrl,
         style: style || 'cinematic',
         status: 'generated',
       },
       update: {
-        generatedImage: generatedImageUrl,
+        generatedImage: previewUrl,
         style: style || 'cinematic',
         status: 'generated',
         salary: String(formattedSalary),
@@ -115,23 +82,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log('💾 Saved to DB');
-
     return NextResponse.json({
       success: true,
-      imageUrl: generatedImageUrl,
+      imageUrl: previewUrl,
       hdDownloadUrl,
-      publicId: uploadResult.publicId,
-      sourceQuality: uploadResult.quality, // 🆕 Ritorna al frontend
-      sourceDimensions: `${uploadResult.width}x${uploadResult.height}`,
+      sourceQuality: generated.sourceQuality,
+      sourceDimensions: `${generated.width}x${generated.height}`,
     });
   } catch (error) {
     console.error('❌ Generate error:', error);
     return NextResponse.json(
-      {
-        error: String(error),
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: String(error), details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     );
   }
