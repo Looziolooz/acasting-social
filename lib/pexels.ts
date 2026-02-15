@@ -1,5 +1,4 @@
 // lib/pexels.ts
-
 export interface PexelsPhoto {
   id: number;
   url: string;        // Pexels page URL
@@ -36,10 +35,10 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Musikvideo':  ['music video', 'music production', 'concert stage', 'musician performance'],
   'Casting':     ['casting call', 'audition room', 'talent search', 'spotlight portrait'],
   'Modell':      ['fashion model', 'fashion photography', 'runway model', 'fashion portrait'],
-  'Röst':        ['voice recording', 'microphone studio', 'podcast recording', 'sound studio'],
-  'Dans':        ['dance performance', 'dancer spotlight', 'dance studio', 'choreography'],
-  'Event':       ['event stage', 'live event', 'conference stage', 'event photography'],
-  'Figurant':    ['crowd scene', 'film extras', 'movie crowd', 'background actor'],
+  'Röst':        ['voice recording', 'microphone studio', 'sound studio'],
+  'Dans':        ['dance performance', 'dancer spotlight', 'dance studio'],
+  'Event':       ['event stage', 'live event', 'conference stage'],
+  'Figurant':    ['crowd scene', 'film extras', 'background actor'],
 };
 
 /**
@@ -52,35 +51,30 @@ function buildSearchQueries(
 ): string[] {
   const queries: string[] = [];
 
-  // 1. Query basata sulla categoria
   if (category) {
     const catKey = Object.keys(CATEGORY_KEYWORDS).find(
       (k) => k.toLowerCase() === category.toLowerCase()
     );
     if (catKey) {
       const keywords = CATEGORY_KEYWORDS[catKey];
-      // Prendi 2 keyword casuali dalla categoria
-      const shuffled = keywords.sort(() => 0.5 - Math.random());
+      const shuffled = [...keywords].sort(() => 0.5 - Math.random());
       queries.push(shuffled[0]);
       if (shuffled[1]) queries.push(shuffled[1]);
     }
   }
 
-  // 2. Query basata su parole chiave dal titolo
   const titleKeywords = extractKeywords(title);
   if (titleKeywords) {
     queries.push(titleKeywords);
   }
 
-  // 3. Query generiche di fallback
   if (queries.length === 0) {
-    queries.push('casting audition', 'film production', 'creative portrait');
+    queries.push('casting audition', 'film production');
   }
 
-  // 4. Sempre aggiungere una query "cinematic" per varietà
   queries.push('cinematic portrait dark');
-
-return Array.from(new Set(queries)).slice(0, 4);}
+  return Array.from(new Set(queries)).slice(0, 4);
+}
 
 /**
  * Estrai keyword utili dal titolo (rimuovi parole svedesi comuni)
@@ -88,8 +82,7 @@ return Array.from(new Set(queries)).slice(0, 4);}
 function extractKeywords(title: string): string {
   const stopWords = [
     'sökes', 'för', 'till', 'och', 'med', 'i', 'på', 'av', 'den', 'det',
-    'en', 'ett', 'vi', 'vår', 'nya', 'ny', 'stor', 'liten', 'alla',
-    'professionella', 'foton', 'digital', 'twin', 'jobb',
+    'en', 'ett', 'vi', 'vår', 'nya', 'ny', 'stor', 'liten', 'alla', 'jobb',
   ];
 
   const words = title
@@ -98,27 +91,16 @@ function extractKeywords(title: string): string {
     .split(/\s+/)
     .filter((w) => w.length > 2 && !stopWords.includes(w));
 
-  // Traduci alcune parole svedesi comuni
   const translations: Record<string, string> = {
     'skådespelare': 'actor',
     'skådespelerska': 'actress',
     'barn': 'children',
-    'ungdomar': 'teenagers',
     'modell': 'model',
     'sångare': 'singer',
     'dansare': 'dancer',
-    'komiker': 'comedian',
-    'musiker': 'musician',
-    'stockholm': 'stockholm city',
-    'göteborg': 'gothenburg',
-    'malmö': 'malmo city',
     'reklam': 'commercial',
-    'reklamfilm': 'commercial film',
     'kortfilm': 'short film',
-    'långfilm': 'feature film',
-    'serie': 'tv series',
-    'teater': 'theater',
-    'musikvideo': 'music video',
+    'långfilm': 'movie',
     'fotograf': 'photographer',
   };
 
@@ -136,26 +118,26 @@ export async function searchPexels(
   const apiKey = process.env.PEXELS_API_KEY;
 
   if (!apiKey) {
-    console.error('❌ PEXELS_API_KEY not configured');
+    console.error('❌ CRITICAL: PEXELS_API_KEY is missing from environment variables');
     return [];
   }
 
   try {
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=portrait&size=large`;
-
     const res = await fetch(url, {
       headers: { Authorization: apiKey },
     });
 
     if (!res.ok) {
-      console.error(`❌ Pexels API error: ${res.status}`);
+      const errorData = await res.json().catch(() => ({}));
+      console.error(`❌ Pexels API Error (${res.status}):`, errorData);
       return [];
     }
 
     const data = await res.json();
     return data.photos || [];
   } catch (error) {
-    console.error('❌ Pexels search failed:', error);
+    console.error('❌ Pexels fetch exception:', error);
     return [];
   }
 }
@@ -172,7 +154,7 @@ export async function findAlternativeImages(
 ): Promise<AlternativeImage[]> {
   const alternatives: AlternativeImage[] = [];
 
-  // 1. Aggiungi l'immagine originale come prima opzione (se esiste)
+  // 1. Sempre includere l'originale come prima opzione
   if (originalImageUrl) {
     alternatives.push({
       id: 'original',
@@ -183,37 +165,36 @@ export async function findAlternativeImages(
     });
   }
 
-  // 2. Genera query di ricerca
-  const queries = buildSearchQueries(title, category, description);
-  console.log('🔍 Pexels search queries:', queries);
+  // Verifica API Key prima di procedere
+  if (!process.env.PEXELS_API_KEY) {
+    console.warn('⚠️ Skipping Pexels search: API Key not configured');
+    return alternatives;
+  }
 
-  // 3. Cerca su Pexels con tutte le query
+  const queries = buildSearchQueries(title, category, description);
   const photosPerQuery = Math.ceil(maxResults / queries.length);
   const seenIds = new Set<number>();
 
   for (const query of queries) {
     const photos = await searchPexels(query, photosPerQuery);
-
     for (const photo of photos) {
       if (seenIds.has(photo.id)) continue;
       seenIds.add(photo.id);
 
       alternatives.push({
         id: `pexels-${photo.id}`,
-        url: photo.src.original,         // HD per Cloudinary
-        thumbnailUrl: photo.src.medium,   // Thumbnail per galleria
+        url: photo.src.original,
+        thumbnailUrl: photo.src.medium,
         source: 'pexels',
         label: photo.alt || query,
         photographer: photo.photographer,
         pexelsUrl: photo.url,
       });
 
-      if (alternatives.length >= maxResults + 1) break; // +1 per l'originale
+      if (alternatives.length >= maxResults + 1) break;
     }
-
     if (alternatives.length >= maxResults + 1) break;
   }
 
-  console.log(`📸 Found ${alternatives.length} alternatives (including original)`);
   return alternatives;
 }

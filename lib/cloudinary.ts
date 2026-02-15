@@ -1,4 +1,4 @@
-// lib/cloudinary.ts — v5: Simplified (upload only, no URL transforms)
+// lib/cloudinary.ts — v5: Simplified (High Quality Hosting)
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -17,36 +17,20 @@ export interface CloudinaryUploadResult {
   bytes: number;
 }
 
-/**
- * Upload a pre-generated image buffer to Cloudinary.
- */
-export async function uploadFinalImage(
-  buffer: Buffer,
-  jobId: string
-): Promise<CloudinaryUploadResult> {
-  console.log(`📤 Uploading final image: ${(buffer.length / 1024).toFixed(1)} KB`);
-
+export async function uploadFinalImage(buffer: Buffer, jobId: string): Promise<CloudinaryUploadResult> {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
       {
         folder: 'acasting/social',
         public_id: `social-${jobId}-${Date.now()}`,
         resource_type: 'image',
-        type: 'upload',
         format: 'png',
         quality: "100",
-        flags: "preserve_transparency",
         overwrite: true,
         invalidate: true,
       },
       (error, result) => {
-        if (error) {
-          console.error('❌ Cloudinary upload error:', error);
-          return reject(error);
-        }
-
-        console.log(`✅ Hosted: ${result!.secure_url}`);
-
+        if (error) return reject(error);
         resolve({
           publicId: result!.public_id,
           url: result!.url,
@@ -61,15 +45,13 @@ export async function uploadFinalImage(
 }
 
 /**
- * Genera l'URL di anteprima usando f_auto, q_90 e dpr_2.0 per la massima nitidezza (come n8n)
+ * Genera l'URL di anteprima HD (Simile a n8n)
  */
 export function getPreviewUrl(secureUrl: string): string {
+  // This matches the "transforms" logic in your n8n JSON file
   return secureUrl.replace('/upload/', '/upload/f_auto,q_90,dpr_2.0/');
 }
 
-/**
- * The original PNG URL is the HD download URL
- */
 export function getDownloadUrl(secureUrl: string): string {
   return secureUrl;
 }
