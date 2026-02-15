@@ -9,6 +9,20 @@ cloudinary.config({
 });
 
 // ─────────────────────────────────────────────────────────────────
+// Utility: Encoding per caratteri speciali (Å, Ä, Ö)
+// ─────────────────────────────────────────────────────────────────
+/**
+ * Cloudinary richiede che il testo nei layer sia codificato per gli URL.
+ * Senza questo, i caratteri svedesi rompono l'URL della trasformazione.
+ */
+function cleanCloudinaryText(text: string): string {
+  if (!text) return '';
+  return encodeURIComponent(text)
+    .replace(/,/g, '%252C') // Gestisce le virgole se presenti nel testo
+    .replace(/\//g, '%252F'); // Gestisce gli slash
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Style configs
 // ─────────────────────────────────────────────────────────────────
 const PRESET_MAP = {
@@ -59,16 +73,18 @@ function buildTransformations(
   const ctaY   = bodyY + 260;
   const brandY = bodyY + 350;
 
-  const title  = job.title || 'Casting';
-  const salary = job.salary ? `Arvode: ${job.salary} kr` : 'Arvode: Ej angivet';
-  const expiry = `Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`;
+  // Applicazione encoding per caratteri svedesi
+  const titleText  = cleanCloudinaryText(job.title || 'Casting');
+  const salaryText = cleanCloudinaryText(job.salary ? `Arvode: ${job.salary} kr` : 'Arvode: Ej angivet');
+  const expiryText = cleanCloudinaryText(`Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`);
+  const ctaText    = cleanCloudinaryText('Ansök nu på');
 
   return [
     { width: 1080, height: 1920, crop: 'fill' as const, gravity: 'face:auto', quality: 90 },
     { effect: `brightness:${brightness}` },
     // Title
     {
-      overlay: { font_family: font, font_size: titleSize, font_weight: 'bold', text_align: 'center', text: title },
+      overlay: { font_family: font, font_size: titleSize, font_weight: 'bold', text_align: 'center', text: titleText },
       gravity: 'center', y: titleY, width: 900, crop: 'fit' as const, color: coColor(titleColor),
     },
     // Divider
@@ -78,17 +94,17 @@ function buildTransformations(
     },
     // Salary
     {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: salary },
+      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: salaryText },
       gravity: 'center', y: bodyY, width: 900, crop: 'fit' as const, color: coColor(subColor),
     },
     // Expiry
     {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: expiry },
+      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: expiryText },
       gravity: 'center', y: expY, width: 900, crop: 'fit' as const, color: coColor(subColor),
     },
     // CTA
     {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: 'Ansök nu på' },
+      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: ctaText },
       gravity: 'center', y: ctaY, width: 900, crop: 'fit' as const, color: coColor(subColor),
     },
     // Brand
@@ -100,8 +116,7 @@ function buildTransformations(
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Main export: upload source → transform via SDK → fetch server-side
-// → re-upload processed image → return clean URL (no transform params)
+// Main export
 // ─────────────────────────────────────────────────────────────────
 export async function generateOverlayImage(
   sourceUrl: string,
@@ -118,7 +133,7 @@ export async function generateOverlayImage(
   });
   console.log('[cloudinary] Source public_id:', uploaded.public_id);
 
-  // 2. Build transformation URL using SDK (handles encoding properly)
+  // 2. Build transformation URL using SDK
   const transformation = buildTransformations(job, style, customStyle);
   const cdnUrl = cloudinary.url(uploaded.public_id, {
     secure: true,
@@ -127,7 +142,7 @@ export async function generateOverlayImage(
   });
   console.log('[cloudinary] CDN transform URL:', cdnUrl);
 
-  // 3. Fetch transformed image server-side (Node.js, no browser encoding issues)
+  // 3. Fetch transformed image server-side
   const res = await fetch(cdnUrl);
   if (!res.ok) {
     const errText = await res.text().catch(() => res.statusText);
@@ -145,13 +160,14 @@ export async function generateOverlayImage(
   });
   console.log('[cloudinary] Final clean URL:', finalResult.secure_url);
 
-  // 5. Return clean direct URL — no transformation params, no encoding issues
   return finalResult.secure_url;
 }
 
 export async function generatePlaceholderAndUpload(jobTitle: string): Promise<string> {
+  // Anche qui usiamo encodeURIComponent per la sicurezza del placeholder
+  const safeTitle = encodeURIComponent((jobTitle || 'Casting').slice(0, 30));
   const result = await cloudinary.uploader.upload(
-    `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${encodeURIComponent((jobTitle || 'Casting').slice(0, 30))}`,
+    `https://placehold.co/1080x1920/0D0D1A/7C3AED.jpg?text=${safeTitle}`,
     { folder: 'acasting_source' }
   );
   return result.secure_url;
