@@ -1,5 +1,6 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { generateSocialImage } from '@/lib/image-generator';
 import { uploadFinalImage, getPreviewUrl } from '@/lib/cloudinary';
 import { db } from '@/lib/db';
 
@@ -8,16 +9,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { jobId, title, salary, expiryDate, originalImage } = body;
 
-    if (!originalImage) return NextResponse.json({ error: 'Manca immagine sorgente' }, { status: 400 });
+    if (!originalImage) return NextResponse.json({ error: 'Nessuna immagine fornita' }, { status: 400 });
 
-    // 1. Scarichiamo l'immagine originale (senza elaborarla con Sharp per evitare Fontconfig error)
-    const imageRes = await fetch(originalImage);
-    const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
+    // 1. Processamento base (Sharp)
+    const generated = await generateSocialImage(originalImage);
 
-    // 2. Upload immagine originale su Cloudinary
-    const uploaded: any = await uploadFinalImage(imageBuffer, String(jobId));
+    // 2. Upload immagine originale pulita su Cloudinary
+    const uploaded: any = await uploadFinalImage(generated.buffer, String(jobId));
 
-    // 3. Generazione URL finale con Overlay (replica n8n)
+    // 3. Generazione URL finale con logica n8n (Cloudinary Overlay)
     const finalImageUrl = getPreviewUrl(uploaded.secure_url, { title, salary, expiryDate });
 
     // 4. Update Database
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, imageUrl: finalImageUrl });
   } catch (error) {
-    console.error('Generation Error:', error);
-    return NextResponse.json({ error: 'Errore durante la generazione' }, { status: 500 });
+    console.error('Errore generazione:', error);
+    return NextResponse.json({ error: 'Generazione fallita' }, { status: 500 });
   }
 }
