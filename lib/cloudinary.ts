@@ -61,7 +61,7 @@ function buildTransformations(
 
   const title  = job.title || 'Casting';
   const salary = job.salary ? `Arvode: ${job.salary} kr` : 'Arvode: Ej angivet';
-  const expiry = `Ansok senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Lopande'}`;
+  const expiry = `Ansök senast: ${job.expiryDate ? job.expiryDate.split('T')[0] : 'Löpande'}`;
 
   return [
     { width: 1080, height: 1920, crop: 'fill' as const, gravity: 'face:auto', quality: 90 },
@@ -88,12 +88,12 @@ function buildTransformations(
     },
     // CTA
     {
-      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: 'Ansok nu pa' },
+      overlay: { font_family: font, font_size: bodySize, font_weight: 'bold', text_align: 'center', text: 'Ansök nu på' },
       gravity: 'center', y: ctaY, width: 900, crop: 'fit' as const, color: coColor(subColor),
     },
     // Brand
     {
-      overlay: { font_family: font, font_size: bodySize + 4, font_weight: 'bold', text_align: 'center', text: 'ACASTING' },
+      overlay: { font_family: font, font_size: bodySize + 4, font_weight: 'bold', text_align: 'center', text: 'ACASTING.se' },
       gravity: 'center', y: brandY, width: 900, crop: 'fit' as const, color: coColor(accentHex),
     },
   ];
