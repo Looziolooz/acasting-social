@@ -10,67 +10,110 @@ cloudinary.config({
 });
 
 // ============================================================
-// 🆕 HELPER: Estrai sempre l'URL a massima risoluzione
+// 🆕 HELPER: Costruisci lista URL ordinata per qualità (best → fallback)
 // ============================================================
-function getHighResImageUrl(imageUrl: string): string {
-  // 1. Se è già un blob URL diretto → massima qualità, usalo così
-  if (imageUrl.includes('acasting.blob.core.windows.net')) {
-    return imageUrl;
-  }
+function getImageUrlCandidates(imageUrl: string): string[] {
+  const candidates: string[] = [];
 
-  // 2. Se è un URL CDN (assets.acasting.se/images/...), estrai il blob originale
+  // Se contiene il CDN proxy, estrai il blob URL originale come primo tentativo
   if (imageUrl.includes('assets.acasting.se')) {
     const blobMatch = imageUrl.match(
       /plain\/(https:\/\/acasting\.blob\.core\.windows\.net\/.+)/
     );
-    if (blobMatch) return blobMatch[1];
-
-    // Fallback: forza la larghezza massima dal CDN
-    return imageUrl.replace(/w:\d+/, 'w:2000');
+    if (blobMatch) {
+      candidates.push(blobMatch[1]); // 1° tentativo: blob diretto
+    }
+    // 2° tentativo: CDN con larghezza massima
+    candidates.push(imageUrl.replace(/w:\d+/, 'w:2000'));
   }
 
-  // 3. Qualsiasi altro URL → usalo così com'è
-  return imageUrl;
+  // Se è già un blob URL diretto
+  if (
+    imageUrl.includes('acasting.blob.core.windows.net') &&
+    !candidates.includes(imageUrl)
+  ) {
+    candidates.unshift(imageUrl);
+  }
+
+  // Ultimo fallback: URL originale così com'è
+  if (!candidates.includes(imageUrl)) {
+    candidates.push(imageUrl);
+  }
+
+  return candidates;
+}
+
+// ============================================================
+// 🆕 HELPER: Fetch robusto con fallback su più URL
+// ============================================================
+async function fetchImageBuffer(imageUrl: string): Promise<Buffer> {
+  const candidates = getImageUrlCandidates(imageUrl);
+
+  for (const url of candidates) {
+    try {
+      console.log(`🔄 Trying fetch: ${url.substring(0, 120)}...`);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Accept: 'image/png,image/jpeg,image/webp,image/*,*/*;q=0.8',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.warn(`⚠️ HTTP ${response.status} for: ${url.substring(0, 80)}`);
+        continue;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      if (buffer.length < 1024) {
+        console.warn(`⚠️ Buffer too small (${buffer.length} bytes), skipping`);
+        continue;
+      }
+
+      console.log(
+        `✅ Fetched OK: ${(buffer.length / 1024).toFixed(2)} KB from ${url.substring(0, 80)}`
+      );
+      return buffer;
+    } catch (err) {
+      console.warn(`⚠️ Fetch failed for ${url.substring(0, 80)}:`, String(err));
+      continue;
+    }
+  }
+
+  throw new Error(`All image fetch attempts failed for: ${imageUrl}`);
 }
 
 // ============================================================
 // UPLOAD — Preserva qualità originale al 100%
 // ============================================================
-export async function uploadImageToCloudinary(imageUrl: string): Promise<string> {
+export async function uploadImageToCloudinary(
+  imageUrl: string
+): Promise<string> {
   try {
-    // Usa sempre la versione a massima risoluzione
-    const highResUrl = getHighResImageUrl(imageUrl);
+    const buffer = await fetchImageBuffer(imageUrl);
 
-    console.log(`📸 Original URL: ${imageUrl.substring(0, 120)}...`);
-    console.log(`🔍 High-res URL: ${highResUrl.substring(0, 120)}...`);
-
-    const response = await fetch(highResUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        Accept: 'image/png,image/jpeg,image/webp,image/*,*/*;q=0.8',
-        'Cache-Control': 'no-cache',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    console.log(`📦 Buffer size: ${(buffer.length / 1024).toFixed(2)} KB`);
+    console.log(
+      `📤 Uploading to Cloudinary: ${(buffer.length / 1024).toFixed(2)} KB`
+    );
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'acasting',
-          quality: 100, // Lossless upload
+          quality: 100,
           resource_type: 'image',
           type: 'upload',
           overwrite: true,
           invalidate: true,
-          // NON applicare trasformazioni in fase di upload
           transformation: [],
         },
         (error, result) => {
@@ -87,7 +130,7 @@ export async function uploadImageToCloudinary(imageUrl: string): Promise<string>
       uploadStream.end(buffer);
     });
   } catch (error) {
-    console.error('❌ Upload failed:', error);
+    console.error('❌ Upload pipeline failed:', error);
     throw error;
   }
 }
@@ -145,13 +188,11 @@ export function buildOverlayUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  // Parametri di output
   const width = custom?.outputWidth ?? 1080;
   const height = custom?.outputHeight ?? 1920;
   const quality = custom?.outputQuality ?? 90;
-  const format = custom?.outputFormat ?? 'auto';
+  const format = custom?.outputFormat ?? 'jpg';
 
-  // Parametri testo
   const titleText = custom?.titleText || job.title || 'Casting';
   const titleSize = custom?.titleSize ?? 54;
   const titleColor = cfColor(custom?.titleColor);
@@ -176,18 +217,11 @@ export function buildOverlayUrl(
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
   const transforms = [
-    // FASE 1: Ridimensionamento dall'originale HD
     `w_${width},h_${height},c_fill,g_auto`,
-
-    // FASE 2: Qualità esplicita (no auto imprevedibile)
     `q_${quality}`,
     `f_${format}`,
-
-    // FASE 3: Effetti immagine
     `e_brightness:${brightness}`,
     'e_sharpen:60',
-
-    // FASE 4: Text overlays
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
@@ -210,7 +244,6 @@ export function buildHDDownloadUrl(
 ): string {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
-  // Per il download forziamo PNG a qualità 100, niente lossy
   const width = custom?.outputWidth ?? 1080;
   const height = custom?.outputHeight ?? 1920;
 
@@ -238,18 +271,11 @@ export function buildHDDownloadUrl(
   const expiryText = `Ansök senast: ${job.expiryDate?.split('T')[0] || 'Löpande'}`;
 
   const transforms = [
-    // Download: risoluzione reale, no dpr
     `w_${width},h_${height},c_fill,g_auto`,
-
-    // Qualità massima, PNG lossless
     'q_100',
     'f_png',
-
-    // Effetti
     `e_brightness:${brightness}`,
     'e_sharpen:60',
-
-    // Text overlays (identici al preview)
     `l_text:${titleFont}_${titleSize}_bold_center:${enc(titleText)},g_center,y_${titleY},w_940,c_fit,co_${titleColor}`,
     'l_text:Arial_65_bold:__,g_center,y_-80,co_rgb:FFFFFF',
     `l_text:${bodyFont}_${bodySize}_bold_center:${enc(salaryText)},g_center,y_40,w_900,c_fit,co_${bodyColor}`,
