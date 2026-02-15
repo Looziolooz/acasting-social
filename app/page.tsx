@@ -34,45 +34,49 @@ export default function Dashboard() {
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
-  const handleGenerate = async (job: AnnotatedJob, style: ImageStyle = 'cinematic', custom?: CustomImageSettings) => {
+  // 🆕 alternativeImageUrl: se presente, usa questa immagine invece dell'originale
+  const handleGenerate = async (
+    job: AnnotatedJob,
+    style: ImageStyle = 'cinematic',
+    custom?: CustomImageSettings,
+    alternativeImageUrl?: string
+  ) => {
     setSelectedJob(job);
     setCurrentStyle(style);
     setGenerating(true);
-    
-    // RIMOSSO: setGeneratedImage(null); 
-    // Manteniamo l'URL se presente per evitare il messaggio "Select a style to preview"
 
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          jobId: job.id, 
-          title: job.title, 
-          salary: job.salary, 
+          jobId: job.id,
+          title: job.title,
+          salary: job.salary,
           city: job.city,
-          expiryDate: job.expiryDate, 
-          slugOrId: job.slugOrId, 
+          expiryDate: job.expiryDate,
+          slugOrId: job.slugOrId,
           category: job.category,
-          description: job.description, 
-          originalImage: job.imageUrl, // URL estratto da acasting.se
+          description: job.description,
+          // 🆕 Se c'è un'immagine alternativa, usa quella; altrimenti l'originale
+          originalImage: alternativeImageUrl || job.imageUrl,
           style,
           customSettings: custom
         }),
       });
 
       const data = await res.json();
-      
+
       if (data.imageUrl) {
-        setGeneratedImage(data.imageUrl); // Aggiorna l'immagine nel modal
+        setGeneratedImage(data.imageUrl);
         setJobs((prev) => prev.map((j) => String(j.id) === String(job.id) ? { ...j, processedStatus: 'generated' } : j));
       } else {
         console.error("API did not return imageUrl:", data);
       }
     } catch (e) {
       console.error("Generate error:", e);
-    } finally { 
-      setGenerating(false); 
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -91,7 +95,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/history?jobId=${jobId}`, { method: 'PATCH' });
       if (res.ok) {
-        setJobs((prev) => 
+        setJobs((prev) =>
           prev.map((j) => String(j.id) === jobId ? { ...j, processedStatus: 'pending' } : j)
         );
       }
@@ -202,7 +206,9 @@ export default function Dashboard() {
         <ImageReviewModal
           job={selectedJob} imageUrl={generatedImage} currentStyle={currentStyle}
           generating={generating}
-          onRegenerate={(style, custom) => handleGenerate(selectedJob, style, custom)}
+          onRegenerate={(style, custom, alternativeImageUrl) =>
+            handleGenerate(selectedJob, style, custom, alternativeImageUrl)
+          }
           onPublished={(platforms) => handlePublished(String(selectedJob.id), platforms)}
           onClose={() => { setSelectedJob(null); setGeneratedImage(null); }} />
       )}

@@ -5,14 +5,16 @@ import {
   X, Check, Loader2, Download, Copy,
   Sliders, CheckCircle2, Facebook, Instagram, Linkedin,
   AlertCircle, Eye, Palette, ImageIcon,
-  Clipboard, ExternalLink, ChevronDown, ChevronUp
+  Clipboard, ExternalLink, ChevronDown, ChevronUp,
+  Images, RefreshCw, Camera, Sparkles
 } from 'lucide-react';
 import type {
   AnnotatedJob,
   ImageStyle,
   Platform,
   PublishResult,
-  CustomImageSettings
+  CustomImageSettings,
+  AlternativeImage
 } from '@/lib/types';
 import {
   STYLE_LABELS,
@@ -28,13 +30,13 @@ interface Props {
   imageUrl: string | null;
   currentStyle: ImageStyle;
   generating: boolean;
-  onRegenerate: (style: ImageStyle, custom?: CustomImageSettings) => void;
+  onRegenerate: (style: ImageStyle, custom?: CustomImageSettings, alternativeImageUrl?: string) => void;
   onPublished: (platforms: string[]) => void;
   onClose: () => void;
 }
 
 type Step = 'preview' | 'platforms' | 'publishing' | 'done';
-type RightTab = 'style' | 'captions' | 'export';
+type RightTab = 'style' | 'images' | 'captions' | 'export';
 
 const PlatformIcon = ({ platform, size = 16 }: { platform: Platform; size?: number }) => {
   switch (platform) {
@@ -56,32 +58,18 @@ const PlatformIcon = ({ platform, size = 16 }: { platform: Platform; size?: numb
 };
 
 function ColorPicker({
-  value,
-  onChange,
-  label,
+  value, onChange, label,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  label: string;
+  value: string; onChange: (v: string) => void; label: string;
 }) {
   return (
     <div>
-      <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">
-        {label}
-      </div>
+      <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">{label}</div>
       <div className="flex flex-wrap gap-1.5">
         {COLOR_PRESETS.map((c) => (
-          <button
-            key={c.value}
-            onClick={() => onChange(c.value)}
-            title={c.label}
-            className={`w-7 h-7 rounded-lg border-2 transition-all ${
-              value === c.value
-                ? 'border-accent scale-110 shadow-lg'
-                : 'border-white/10 hover:border-white/30'
-            }`}
-            style={{ background: c.hex }}
-          />
+          <button key={c.value} onClick={() => onChange(c.value)} title={c.label}
+            className={`w-7 h-7 rounded-lg border-2 transition-all ${value === c.value ? 'border-accent scale-110 shadow-lg' : 'border-white/10 hover:border-white/30'}`}
+            style={{ background: c.hex }} />
         ))}
       </div>
     </div>
@@ -89,29 +77,18 @@ function ColorPicker({
 }
 
 function FontSelect({
-  value,
-  onChange,
-  label,
+  value, onChange, label,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  label: string;
+  value: string; onChange: (v: string) => void; label: string;
 }) {
   return (
     <div>
-      <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">
-        {label}
-      </div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+      <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">{label}</div>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full bg-surface-3 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-accent/50"
-        style={{ background: 'var(--surface-3)' }}
-      >
+        style={{ background: 'var(--surface-3)' }}>
         {AVAILABLE_FONTS.map((f) => (
-          <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-            {f.label}
-          </option>
+          <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
         ))}
       </select>
     </div>
@@ -119,71 +96,87 @@ function FontSelect({
 }
 
 function SliderControl({
-  label,
-  value,
-  min,
-  max,
-  unit,
-  onChange,
+  label, value, min, max, unit, onChange,
 }: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  unit?: string;
-  onChange: (v: number) => void;
+  label: string; value: number; min: number; max: number; unit?: string; onChange: (v: number) => void;
 }) {
   return (
     <div>
       <div className="flex justify-between text-[10px] text-white/40 mb-1.5 uppercase font-mono tracking-wider">
         <span>{label}</span>
-        <span className="text-accent-light font-bold">
-          {value}
-          {unit || 'px'}
-        </span>
+        <span className="text-accent-light font-bold">{value}{unit || 'px'}</span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={value}
+      <input type="range" min={min} max={max} value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        className="w-full h-1.5 bg-surface-4 rounded-lg appearance-none cursor-pointer accent-purple-500"
-      />
+        className="w-full h-1.5 bg-surface-4 rounded-lg appearance-none cursor-pointer accent-purple-500" />
     </div>
   );
 }
 
 export default function ImageReviewModal({
-  job,
-  imageUrl,
-  currentStyle,
-  generating,
-  onRegenerate,
-  onPublished,
-  onClose,
+  job, imageUrl, currentStyle, generating, onRegenerate, onPublished, onClose,
 }: Props) {
   const [step, setStep] = useState<Step>('preview');
   const [rightTab, setRightTab] = useState<RightTab>('style');
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
-    'instagram',
-    'facebook',
-  ]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['instagram', 'facebook']);
   const [publishResults, setPublishResults] = useState<PublishResult[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [copiedCaption, setCopiedCaption] = useState<string | null>(null);
   const [captions, setCaptions] = useState<Record<string, string>>({});
   const [loadingCaptions, setLoadingCaptions] = useState(false);
-  const [customSet, setCustomSet] = useState<CustomImageSettings>({
-    ...DEFAULT_CUSTOM_SETTINGS,
-  });
+  const [customSet, setCustomSet] = useState<CustomImageSettings>({ ...DEFAULT_CUSTOM_SETTINGS });
+
+  // 🆕 Stato per immagini alternative
+  const [alternatives, setAlternatives] = useState<AlternativeImage[]>([]);
+  const [loadingAlternatives, setLoadingAlternatives] = useState(false);
+  const [selectedImageId, setSelectedImageId] = useState<string>('original');
+  const [alternativesLoaded, setAlternativesLoaded] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, []);
+
+  // 🆕 Fetch alternative images da Pexels
+  const fetchAlternatives = useCallback(async () => {
+    setLoadingAlternatives(true);
+    try {
+      const res = await fetch('/api/alternatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: job.title,
+          category: job.category,
+          description: job.description,
+          originalImageUrl: job.imageUrl,
+        }),
+      });
+      const data = await res.json();
+      if (data.alternatives) {
+        setAlternatives(data.alternatives);
+        setAlternativesLoaded(true);
+      }
+    } catch (e) {
+      console.error('Failed to fetch alternatives', e);
+    } finally {
+      setLoadingAlternatives(false);
+    }
+  }, [job]);
+
+  // 🆕 Quando si apre la tab "images", carica le alternative
+  useEffect(() => {
+    if (rightTab === 'images' && !alternativesLoaded) {
+      fetchAlternatives();
+    }
+  }, [rightTab, fetchAlternatives, alternativesLoaded]);
+
+  // 🆕 Seleziona un'immagine alternativa e rigenera
+  const handleSelectAlternative = (alt: AlternativeImage) => {
+    setSelectedImageId(alt.id);
+    // Passa l'URL dell'immagine alternativa al generatore
+    const imageUrlToUse = alt.source === 'original' ? undefined : alt.url;
+    onRegenerate(currentStyle, currentStyle === 'custom' ? customSet : undefined, imageUrlToUse);
+  };
 
   const fetchCaptions = useCallback(async () => {
     setLoadingCaptions(true);
@@ -193,16 +186,10 @@ export default function ImageReviewModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           job: {
-            id: job.id,
-            title: job.title,
-            description: job.description,
-            salary: job.salary,
-            city: job.city,
-            expiryDate: job.expiryDate,
-            slugOrId: job.slugOrId,
-            category: job.category,
-            imageUrl: job.imageUrl,
-            createdAt: job.createdAt,
+            id: job.id, title: job.title, description: job.description,
+            salary: job.salary, city: job.city, expiryDate: job.expiryDate,
+            slugOrId: job.slugOrId, category: job.category,
+            imageUrl: job.imageUrl, createdAt: job.createdAt,
           },
           platforms: ['facebook', 'instagram', 'linkedin', 'tiktok'],
         }),
@@ -217,8 +204,8 @@ export default function ImageReviewModal({
   }, [job]);
 
   useEffect(() => {
-    if (rightTab === 'captions' || rightTab === 'export') {
-      if (!Object.keys(captions).length) fetchCaptions();
+    if ((rightTab === 'captions' || rightTab === 'export') && !Object.keys(captions).length) {
+      fetchCaptions();
     }
   }, [rightTab, fetchCaptions, captions]);
 
@@ -270,35 +257,25 @@ export default function ImageReviewModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        className="relative w-full max-w-7xl rounded-[32px] overflow-hidden border border-white/10 flex flex-col max-h-[95vh] shadow-2xl"
-        style={{ background: 'var(--surface-1)', animation: 'slideUp 0.3s ease both' }}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="relative w-full max-w-7xl rounded-[32px] overflow-hidden border border-white/10 flex flex-col max-h-[95vh] shadow-2xl"
+        style={{ background: 'var(--surface-1)', animation: 'slideUp 0.3s ease both' }}>
+
         {/* HEADER */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-display font-bold text-white truncate">{job.title}</h2>
-            <p className="text-white/40 text-xs mt-0.5 font-mono">
-              {job.city} · {job.salary} kr
-            </p>
+            <p className="text-white/40 text-xs mt-0.5 font-mono">{job.city} · {job.salary} kr</p>
           </div>
           <div className="flex items-center gap-3 ml-4">
             {step === 'preview' && (
-              <button
-                onClick={() => setStep('platforms')}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white text-black font-bold text-xs uppercase tracking-widest hover:bg-white/90 transition-all"
-              >
+              <button onClick={() => setStep('platforms')}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white text-black font-bold text-xs uppercase tracking-widest hover:bg-white/90 transition-all">
                 <Check size={14} /> Approve &amp; Publish
               </button>
             )}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/10 text-white/40 transition-colors"
-            >
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-white/40 transition-colors">
               <X size={20} />
             </button>
           </div>
@@ -311,21 +288,11 @@ export default function ImageReviewModal({
               {generating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <Loader2 className="animate-spin" size={32} style={{ color: 'var(--accent)' }} />
-                  <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
-                    HD Rendering...
-                  </span>
+                  <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">HD Rendering...</span>
                 </div>
               ) : imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt="HD Preview"
-                  className="w-full h-full object-cover"
-                  style={{
-                    imageRendering: 'auto',
-                    WebkitTransform: 'translateZ(0)',
-                  }}
-                  loading="lazy"
-                />
+                <img src={imageUrl} alt="HD Preview" className="w-full h-full object-cover"
+                  style={{ imageRendering: 'auto', WebkitTransform: 'translateZ(0)' }} loading="lazy" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/20 text-sm font-display uppercase tracking-widest text-center px-6">
                   Select a style to preview
@@ -334,20 +301,14 @@ export default function ImageReviewModal({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={downloadImageHD}
-                disabled={!imageUrl || generating}
+              <button onClick={downloadImageHD} disabled={!imageUrl || generating}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30 hover:opacity-90"
-                style={{ background: 'var(--surface-3)', color: 'white' }}
-              >
+                style={{ background: 'var(--surface-3)', color: 'white' }}>
                 <Download size={14} /> Save HD
               </button>
-              <button
-                onClick={() => copyToClipboard(imageUrl || '', 'link')}
-                disabled={!imageUrl || generating}
+              <button onClick={() => copyToClipboard(imageUrl || '', 'link')} disabled={!imageUrl || generating}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-bold transition-all disabled:opacity-30 hover:opacity-90"
-                style={{ background: 'var(--surface-3)', color: 'white' }}
-              >
+                style={{ background: 'var(--surface-3)', color: 'white' }}>
                 <ImageIcon size={14} /> {copiedCaption === 'link' ? 'Copied!' : 'Copy Link'}
               </button>
             </div>
@@ -357,55 +318,39 @@ export default function ImageReviewModal({
           <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--surface-1)' }}>
             {step === 'preview' && (
               <div className="flex border-b border-white/5 px-6">
-                {(['style', 'captions', 'export'] as RightTab[]).map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => setRightTab(key)}
+                {(['style', 'images', 'captions', 'export'] as RightTab[]).map((key) => (
+                  <button key={key} onClick={() => setRightTab(key)}
                     className={`flex items-center gap-2 px-5 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
-                      rightTab === key
-                        ? 'text-white border-accent'
-                        : 'text-white/30 border-transparent hover:text-white/60'
-                    }`}
-                  >
-                    {key === 'style' ? (
-                      <Palette size={14} />
-                    ) : key === 'captions' ? (
-                      <Eye size={14} />
-                    ) : (
-                      <ExternalLink size={14} />
-                    )}
-                    {key}
+                      rightTab === key ? 'text-white border-accent' : 'text-white/30 border-transparent hover:text-white/60'
+                    }`}>
+                    {key === 'style' ? <Palette size={14} />
+                      : key === 'images' ? <Images size={14} />
+                      : key === 'captions' ? <Eye size={14} />
+                      : <ExternalLink size={14} />}
+                    {key === 'images' ? 'Images' : key}
                   </button>
                 ))}
               </div>
             )}
 
             <div className="flex-1 overflow-y-auto p-6">
-              {/* TAB: STYLE */}
+
+              {/* ================================================ */}
+              {/* TAB: STYLE                                        */}
+              {/* ================================================ */}
               {step === 'preview' && rightTab === 'style' && (
                 <div className="flex flex-col gap-6">
-                  {/* Preset Styles */}
                   <section>
-                    <h3
-                      className="text-[10px] font-bold text-white/30 uppercase mb-3 tracking-widest border-l-2 pl-3"
-                      style={{ borderColor: 'var(--accent)' }}
-                    >
-                      Preset Styles
-                    </h3>
+                    <h3 className="text-[10px] font-bold text-white/30 uppercase mb-3 tracking-widest border-l-2 pl-3"
+                      style={{ borderColor: 'var(--accent)' }}>Preset Styles</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {Object.entries(STYLE_LABELS).map(([styleKey, config]) => (
-                        <button
-                          key={styleKey}
-                          onClick={() =>
-                            onRegenerate(styleKey as ImageStyle, styleKey === 'custom' ? customSet : undefined)
-                          }
+                        <button key={styleKey}
+                          onClick={() => onRegenerate(styleKey as ImageStyle, styleKey === 'custom' ? customSet : undefined)}
                           className={`p-4 rounded-2xl text-left border-2 transition-all ${
-                            currentStyle === styleKey
-                              ? 'border-accent bg-accent/10'
-                              : 'border-white/5 hover:border-white/15'
+                            currentStyle === styleKey ? 'border-accent bg-accent/10' : 'border-white/5 hover:border-white/15'
                           }`}
-                          style={{ background: currentStyle === styleKey ? undefined : 'var(--surface-2)' }}
-                        >
+                          style={{ background: currentStyle === styleKey ? undefined : 'var(--surface-2)' }}>
                           <div className="text-sm font-bold text-white">{config.label}</div>
                           <div className="text-[10px] text-white/40 mt-0.5">{config.desc}</div>
                         </button>
@@ -413,47 +358,25 @@ export default function ImageReviewModal({
                     </div>
                   </section>
 
-                  {/* Custom Studio */}
                   {currentStyle === 'custom' && (
-                    <section
-                      className="rounded-2xl border border-accent/20 overflow-hidden"
-                      style={{ background: 'rgba(124,58,237,0.04)' }}
-                    >
-                      <div
-                        className="flex items-center gap-2 px-5 py-3 border-b border-accent/10"
-                        style={{ color: 'var(--accent-light)' }}
-                      >
-                        <Sliders size={16} />{' '}
-                        <span className="text-xs font-bold uppercase tracking-widest">
-                          Custom Studio
-                        </span>
+                    <section className="rounded-2xl border border-accent/20 overflow-hidden"
+                      style={{ background: 'rgba(124,58,237,0.04)' }}>
+                      <div className="flex items-center gap-2 px-5 py-3 border-b border-accent/10"
+                        style={{ color: 'var(--accent-light)' }}>
+                        <Sliders size={16} />
+                        <span className="text-xs font-bold uppercase tracking-widest">Custom Studio</span>
                       </div>
                       <div className="p-5 space-y-5">
-                        {/* 🆕 Quality Presets */}
                         <div>
-                          <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">
-                            🎯 Quality Preset
-                          </div>
+                          <div className="text-[10px] text-white/40 uppercase font-mono mb-2 tracking-wider">Quality Preset</div>
                           <div className="grid grid-cols-2 gap-2">
                             {QUALITY_PRESETS.map((preset) => (
-                              <button
-                                key={preset.label}
-                                onClick={() => {
-                                  updateCustom({
-                                    outputQuality: preset.quality,
-                                    outputFormat: preset.format,
-                                    outputWidth: preset.width,
-                                    outputHeight: preset.height,
-                                  });
-                                }}
+                              <button key={preset.label}
+                                onClick={() => updateCustom({ outputQuality: preset.quality, outputFormat: preset.format, outputWidth: preset.width, outputHeight: preset.height })}
                                 className={`px-3 py-2.5 rounded-lg text-left border transition-all ${
-                                  customSet.outputQuality === preset.quality &&
-                                  customSet.outputWidth === preset.width
-                                    ? 'border-accent bg-accent/10'
-                                    : 'border-white/10 hover:border-white/20'
-                                }`}
-                                style={{ background: 'var(--surface-3)' }}
-                              >
+                                  customSet.outputQuality === preset.quality && customSet.outputWidth === preset.width
+                                    ? 'border-accent bg-accent/10' : 'border-white/10 hover:border-white/20'
+                                }`} style={{ background: 'var(--surface-3)' }}>
                                 <div className="text-xs font-bold text-white">{preset.label}</div>
                                 <div className="text-[9px] text-white/40 mt-0.5">{preset.desc}</div>
                               </button>
@@ -461,48 +384,20 @@ export default function ImageReviewModal({
                           </div>
                         </div>
 
-                        {/* 🆕 Custom Quality Slider */}
-                        <SliderControl
-                          label="Custom Quality"
-                          value={customSet.outputQuality ?? 95}
-                          min={70}
-                          max={100}
-                          unit="%"
-                          onChange={(v) => updateCustom({ outputQuality: v })}
-                        />
+                        <SliderControl label="Custom Quality" value={customSet.outputQuality ?? 95}
+                          min={70} max={100} unit="%" onChange={(v) => updateCustom({ outputQuality: v })} />
+                        <FontSelect label="Title Font" value={customSet.titleFont || 'Arial'}
+                          onChange={(v) => updateCustom({ titleFont: v })} />
+                        <ColorPicker label="Accent Color" value={customSet.accentColor || '7C3AED'}
+                          onChange={(v) => updateCustom({ accentColor: v })} />
+                        <SliderControl label="Title Position (Y)" value={customSet.titleY ?? -250}
+                          min={-500} max={0} onChange={(v) => updateCustom({ titleY: v })} />
+                        <SliderControl label="Brightness" value={customSet.brightness ?? -75}
+                          min={-100} max={0} unit="" onChange={(v) => updateCustom({ brightness: v })} />
 
-                        {/* Font & Colors */}
-                        <FontSelect
-                          label="Title Font"
-                          value={customSet.titleFont || 'Arial'}
-                          onChange={(v) => updateCustom({ titleFont: v })}
-                        />
-                        <ColorPicker
-                          label="Accent Color"
-                          value={customSet.accentColor || '7C3AED'}
-                          onChange={(v) => updateCustom({ accentColor: v })}
-                        />
-                        <SliderControl
-                          label="Title Position (Y)"
-                          value={customSet.titleY ?? -250}
-                          min={-500}
-                          max={0}
-                          onChange={(v) => updateCustom({ titleY: v })}
-                        />
-                        <SliderControl
-                          label="Brightness"
-                          value={customSet.brightness ?? -75}
-                          min={-100}
-                          max={0}
-                          unit=""
-                          onChange={(v) => updateCustom({ brightness: v })}
-                        />
-
-                        <button
-                          onClick={() => onRegenerate('custom', customSet)}
+                        <button onClick={() => onRegenerate('custom', customSet)}
                           className="w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] text-white"
-                          style={{ background: 'var(--accent)' }}
-                        >
+                          style={{ background: 'var(--accent)' }}>
                           Apply Custom Settings
                         </button>
                       </div>
@@ -511,7 +406,138 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* TAB: CAPTIONS */}
+              {/* ================================================ */}
+              {/* 🆕 TAB: IMAGES (Alternative gallery)              */}
+              {/* ================================================ */}
+              {step === 'preview' && rightTab === 'images' && (
+                <div className="flex flex-col gap-5">
+                  {/* Header con descrizione e pulsante refresh */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-[10px] font-bold text-white/30 uppercase mb-1 tracking-widest border-l-2 pl-3"
+                        style={{ borderColor: 'var(--accent)' }}>
+                        Choose Source Image
+                      </h3>
+                      <p className="text-white/40 text-xs pl-5">
+                        Select an alternative image to use as background. The overlay text will be applied automatically.
+                      </p>
+                    </div>
+                    <button onClick={() => { setAlternativesLoaded(false); fetchAlternatives(); }}
+                      disabled={loadingAlternatives}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-white/5"
+                      style={{ color: 'var(--accent-light)' }}>
+                      <RefreshCw size={12} className={loadingAlternatives ? 'animate-spin' : ''} />
+                      New search
+                    </button>
+                  </div>
+
+                  {/* Loading state */}
+                  {loadingAlternatives && (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                      <Loader2 className="animate-spin" size={28} style={{ color: 'var(--accent)' }} />
+                      <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
+                        Searching for alternatives...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Gallery grid */}
+                  {!loadingAlternatives && alternatives.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {alternatives.map((alt) => (
+                        <button
+                          key={alt.id}
+                          onClick={() => handleSelectAlternative(alt)}
+                          disabled={generating}
+                          className={`group relative rounded-xl overflow-hidden transition-all aspect-[3/4] ${
+                            selectedImageId === alt.id
+                              ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface-1 scale-[1.02]'
+                              : 'hover:ring-1 hover:ring-white/20 hover:scale-[1.01]'
+                          } ${generating ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          {/* Thumbnail */}
+                          <img
+                            src={alt.thumbnailUrl}
+                            alt={alt.label}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+
+                          {/* Overlay gradient */}
+                          <div className="absolute inset-0"
+                            style={{ background: 'linear-gradient(to top, rgba(8,8,16,0.9) 0%, transparent 50%)' }} />
+
+                          {/* Selected indicator */}
+                          {selectedImageId === alt.id && (
+                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{ background: 'var(--accent)' }}>
+                              <Check size={12} className="text-white" />
+                            </div>
+                          )}
+
+                          {/* Source badge */}
+                          <div className="absolute top-2 left-2">
+                            {alt.source === 'original' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase"
+                                style={{ background: 'rgba(124,58,237,0.8)', color: 'white' }}>
+                                Original
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase"
+                                style={{ background: 'rgba(0,0,0,0.6)', color: 'white', backdropFilter: 'blur(4px)' }}>
+                                Pexels
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Bottom info */}
+                          <div className="absolute bottom-0 left-0 right-0 p-2">
+                            <p className="text-white text-[10px] font-medium line-clamp-1 leading-tight">
+                              {alt.label}
+                            </p>
+                            {alt.photographer && (
+                              <p className="text-white/40 text-[9px] mt-0.5">
+                                📸 {alt.photographer}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/10 transition-colors flex items-center justify-center">
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold uppercase tracking-wider bg-black/60 px-3 py-1.5 rounded-lg backdrop-blur-sm">
+                              {generating ? 'Generating...' : 'Use this image'}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!loadingAlternatives && alternatives.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-white/20">
+                      <Camera size={36} className="mb-3 opacity-30" />
+                      <p className="text-sm font-display">No alternatives found</p>
+                      <p className="text-xs mt-1">Try refreshing or check your Pexels API key</p>
+                    </div>
+                  )}
+
+                  {/* Pexels attribution */}
+                  {alternatives.some((a) => a.source === 'pexels') && (
+                    <div className="flex items-center justify-center gap-2 py-2 text-white/20 text-[10px]">
+                      <span>Photos provided by</span>
+                      <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer"
+                        className="text-white/40 hover:text-white/60 underline transition-colors">
+                        Pexels
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ================================================ */}
+              {/* TAB: CAPTIONS                                     */}
+              {/* ================================================ */}
               {step === 'preview' && rightTab === 'captions' && (
                 <div className="space-y-4">
                   {loadingCaptions ? (
@@ -522,33 +548,26 @@ export default function ImageReviewModal({
                         <div className="flex justify-between items-center mb-2">
                           <div className="flex items-center gap-2">
                             <PlatformIcon platform={p} />
-                            <span className="text-xs font-bold text-white uppercase">
-                              {config.label}
-                            </span>
+                            <span className="text-xs font-bold text-white uppercase">{config.label}</span>
                           </div>
-                          <button
-                            onClick={() => copyToClipboard(captions[p] || '', p)}
-                            className="text-[10px] text-accent-light uppercase font-bold"
-                          >
+                          <button onClick={() => copyToClipboard(captions[p] || '', p)}
+                            className="text-[10px] text-accent-light uppercase font-bold">
                             {copiedCaption === p ? 'Copied!' : 'Copy'}
                           </button>
                         </div>
-                        <pre className="text-xs text-white/70 whitespace-pre-wrap font-sans">
-                          {captions[p] || '...'}
-                        </pre>
+                        <pre className="text-xs text-white/70 whitespace-pre-wrap font-sans">{captions[p] || '...'}</pre>
                       </div>
                     ))
                   )}
                 </div>
               )}
 
-              {/* TAB: EXPORT */}
+              {/* ================================================ */}
+              {/* TAB: EXPORT                                       */}
+              {/* ================================================ */}
               {step === 'preview' && rightTab === 'export' && (
                 <div className="space-y-4 text-white/70 text-sm">
-                  <p>
-                    Use the HD download button on the left or copy the direct Cloudinary link to
-                    reuse this creative across platforms.
-                  </p>
+                  <p>Use the HD download button on the left or copy the direct Cloudinary link to reuse this creative across platforms.</p>
                   <div className="p-4 rounded-xl bg-surface-2 border border-white/5">
                     <div className="text-xs text-white/40 mb-2 uppercase font-mono">Current Quality Settings</div>
                     <div className="space-y-1 text-xs">
@@ -560,7 +579,7 @@ export default function ImageReviewModal({
                 </div>
               )}
 
-              {/* STEP: PLATFORMS (placeholder) */}
+              {/* STEP: PLATFORMS */}
               {step === 'platforms' && (
                 <div className="space-y-4">
                   <p className="text-white/60 text-sm">Select platforms for publishing...</p>
@@ -571,9 +590,7 @@ export default function ImageReviewModal({
               {step === 'done' && (
                 <div className="space-y-4 flex flex-col items-center justify-center text-center py-16">
                   <CheckCircle2 className="text-accent" size={40} />
-                  <p className="text-white text-sm font-semibold">
-                    Post published to selected platforms.
-                  </p>
+                  <p className="text-white text-sm font-semibold">Post published to selected platforms.</p>
                 </div>
               )}
             </div>

@@ -48,13 +48,13 @@ export interface CustomImageSettings {
   brightness?: number;
   // Accent
   accentColor?: string;
-  // 🆕 Quality Controls
-  outputQuality?: number;      // 1-100 (default: 95)
-  outputWidth?: number;        // larghezza personalizzata (default: 1080)
-  outputHeight?: number;       // altezza personalizzata (default: 1920)
+  // Quality Controls
+  outputQuality?: number;
+  outputWidth?: number;
+  outputHeight?: number;
   outputFormat?: 'png' | 'jpg' | 'webp' | 'auto';
-  enableProgressive?: boolean;  // caricamento progressivo
-  useLossyPNG?: boolean;       // compressione PNG ottimizzata
+  enableProgressive?: boolean;
+  useLossyPNG?: boolean;
 }
 
 export const DEFAULT_CUSTOM_SETTINGS: CustomImageSettings = {
@@ -142,3 +142,16 @@ export const QUALITY_PRESETS = [
   { label: 'Retina 2x', quality: 85, format: 'auto' as const, width: 2160, height: 3840, desc: 'Double resolution, ~1.2MB' },
   { label: 'Fast Web', quality: 80, format: 'auto' as const, width: 1080, height: 1920, desc: 'WebP optimized, ~400KB' },
 ] as const;
+
+// ============================================================
+// 🆕 TIPO PER IMMAGINI ALTERNATIVE (Pexels)
+// ============================================================
+export interface AlternativeImage {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  source: 'original' | 'pexels';
+  label: string;
+  photographer?: string;
+  pexelsUrl?: string;
+}
